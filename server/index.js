@@ -545,7 +545,7 @@ app.patch('/production-runs/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'PR
 
     const auditLog = await writeAuditLog({
       entityType: 'ProductionRun',
-      entityId: run._id,
+      entityId: updated._id,
       user: req.user,
       before,
       after
