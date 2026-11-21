@@ -10,8 +10,10 @@ const BOM = require('./models/BOM');
 const Purchase = require('./models/Purchase');
 const ProductionRun = require('./models/ProductionRun');
 const Customer = require('./models/Customer');
+const Order = require('./models/Order');
 const { Invoice } = require('./models/Invoice');
 const { User } = require('./models/User');
+const { requireAuth, requireRole } = require('./middleware/auth');
 const { postProductionRun } = require('./productionService');
 const { variancePct, flag } = require('./variance');
 const {
@@ -31,6 +33,10 @@ const { weightedAvgRatePaisa, calculateRunCost } = require('./costing');
 
 const app = express();
 app.use(express.json());
+
+if (!Order.schema.path('createdBy')) {
+  Order.schema.add({ createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } });
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-order-audit-secret';
 
@@ -162,7 +168,6 @@ app.post('/purchases', async (req, res) => {
         throw new Error(`ratePerDisplayUnitPaisa must be a non-negative integer for ${item.name}`);
       }
 
-      // Rule: qtyBase * ratePerDisplayUnitPaisa / displayFactor, rounded half-up to nearest paisa
       const lineTotalPaisa = Math.round((line.qtyBase * line.ratePerDisplayUnitPaisa) / item.displayFactor);
       totalPaisa += lineTotalPaisa;
 
@@ -173,7 +178,6 @@ app.post('/purchases', async (req, res) => {
         lineTotalPaisa
       });
 
-      // Write ledger movement inside the transaction
       await StockLedger.create([{
         item: item._id,
         qtyDelta: line.qtyBase,
@@ -388,10 +392,25 @@ app.get('/customers', async (req, res) => {
   }
 });
 
-app.post('/orders', async (req, res) => {
+app.post('/orders', requireAuth, requireRole('ADMIN', 'SALESMAN'), async (req, res) => {
   try {
     const order = await createOrder(req.body);
+    order.createdBy = req.user.id;
+    await order.save();
     res.status(201).json(order);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/orders/:id', requireAuth, requireRole('ADMIN', 'SALESMAN', 'ACCOUNTANT', 'STORE'), async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id).lean();
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (req.user.role === 'SALESMAN' && order.createdBy?.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Forbidden: cannot read another salesman order' });
+    }
+    res.json(order);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -418,7 +437,7 @@ app.post('/orders/:id/invoice', async (req, res) => {
   }
 });
 
-app.get('/invoices/:id', async (req, res) => {
+app.get('/invoices/:id', requireAuth, requireRole('ADMIN', 'ACCOUNTANT', 'SALESMAN'), async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id).lean();
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
@@ -448,7 +467,7 @@ app.post('/invoices/:id/credit-note', async (req, res) => {
 
 // --- Day 5: Payments & Outstanding ---
 
-app.post('/payments', async (req, res) => {
+app.post('/payments', requireAuth, requireRole('ADMIN', 'SALESMAN'), async (req, res) => {
   try {
     const payment = await recordPayment(req.body);
     res.status(201).json(payment);
