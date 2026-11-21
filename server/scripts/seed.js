@@ -5,6 +5,11 @@ const Item = require('../models/Item');
 const StockLedger = require('../models/StockLedger');
 const BOM = require('../models/BOM');
 const Purchase = require('../models/Purchase');
+const ProductionRun = require('../models/ProductionRun');
+const Customer = require('../models/Customer');
+const Order = require('../models/Order');
+const { Invoice, Counter } = require('../models/Invoice');
+const CreditNote = require('../models/CreditNote');
 
 const ITEMS = [
   { sku: 'RM-FLOUR',  name: 'Flour',              category: 'RAW_MATERIAL',  baseUnit: 'g',   displayUnit: 'kg',      displayFactor: 1000, openingQty: 100000 },
@@ -21,8 +26,14 @@ async function seed() {
   await Promise.all([
     StockLedger.deleteMany({}),
     Purchase.deleteMany({}),
+    ProductionRun.deleteMany({}),
     BOM.deleteMany({}),
-    Item.deleteMany({})
+    Item.deleteMany({}),
+    Customer.deleteMany({}),
+    Order.deleteMany({}),
+    Invoice.deleteMany({}),
+    Counter.deleteMany({}),
+    CreditNote.deleteMany({})
   ]);
 
   const itemMap = {};
