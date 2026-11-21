@@ -94,3 +94,9 @@ Run: `goodOutputPcs: 188`, `damagedPcs: 6`, `cartonsUsed: 9`; Flour `40000 g`, O
 | **Credit Note (`CN/TN/2026-27/0001`)** | Reverses invoice totals (`-787500` paise) | `-787500` paise | **Match** |
 | **Distributor B order (120 pcs) approve** | Shortage `32` flagged | `{"shortage":32}` | **Match** |
 | **Distributor B invoice (Karnataka IGST)** | Taxable `600000`, IGST `30000`, Total `630000` paise | Verified in Jest + API | **Match** | 
+## Day 5 Design Notes: Costing & Live Data State
+
+- **Valuation Method (Weighted Average):** Material rates are computed as the weighted average across `OPENING_STOCK` and all `Purchase` lines (`RM-FLOUR`: `(100 kg × ₹42 + 60 kg × ₹45) / 160 kg = ₹43.125/kg`).
+- **Overhead Allocation:** Labour (`120000` paise / ₹1,200) and gas/power (`60000` paise / ₹600) are allocated strictly across the `188` good output packets (`180000 / 188 ≈ 957` paise/packet).
+- **Damaged Pouches Rule (Wastage Absorption):** All `194` issued pouches (`188` good + `6` damaged) at ₹2.50 (`48500` paise) are included in run material cost. Damaged pouches (wastage) are explicitly absorbed into the unit cost of the `188` good packets, giving `585800 / 188 = 3116` paise (`₹31.16`/packet).
+- **Flour Purchase Note:** The 60 kg @ ₹45/kg flour purchase (`Kaveri Flour Mills`) used to verify the ₹43.125/kg weighted average was posted as a test write on the live database *after* the Day 4 reseed, rather than as part of the initial Section 5 seed script.
