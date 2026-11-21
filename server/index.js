@@ -17,6 +17,11 @@ const {
   dispatchOrder,
   createCreditNote
 } = require('./orderService');
+const {
+  recordPayment,
+  getInvoiceOutstanding,
+  getCustomerOutstanding
+} = require('./paymentService');
 
 const app = express();
 app.use(express.json());
@@ -311,6 +316,35 @@ app.post('/invoices/:id/credit-note', async (req, res) => {
   try {
     const cn = await createCreditNote(req.params.id, req.body?.reason);
     res.status(201).json(cn);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Day 5: Payments & Outstanding ---
+
+app.post('/payments', async (req, res) => {
+  try {
+    const payment = await recordPayment(req.body);
+    res.status(201).json(payment);
+  } catch (err) {
+    res.status(err.statusCode || 400).json({ error: err.message });
+  }
+});
+
+app.get('/invoices/:id/outstanding', async (req, res) => {
+  try {
+    const data = await getInvoiceOutstanding(req.params.id);
+    res.json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/customers/:id/outstanding', async (req, res) => {
+  try {
+    const data = await getCustomerOutstanding(req.params.id);
+    res.json(data);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
