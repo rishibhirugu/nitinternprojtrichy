@@ -13,7 +13,8 @@ const productionRunSchema = new mongoose.Schema({
   goodOutputPcs: { type: Number, required: true, min: 0 },
   damagedPcs: { type: Number, required: true, default: 0, min: 0 },
   cartonsUsed: { type: Number, required: true, default: 0, min: 0 },
-  createdBy: { type: String, default: 'production@factory.test' }
+  createdBy: { type: String, default: 'production@factory.test' },
+  notes: { type: String, default: '' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('ProductionRun', productionRunSchema);
