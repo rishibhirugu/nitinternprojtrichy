@@ -539,7 +539,7 @@ app.patch('/production-runs/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'PR
     const updated = await ProductionRun.findByIdAndUpdate(
       req.params.id,
       { $set: updates },
-      { new: true, strict: false }
+      { new: true }
     ).lean();
     const after = { ...updated, notes: updated.notes ?? '' };
 
