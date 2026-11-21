@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
@@ -35,6 +36,7 @@ const { weightedAvgRatePaisa, calculateRunCost } = require('./costing');
 
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 if (!ProductionRun.schema.path('notes')) {
   ProductionRun.schema.add({ notes: { type: String, default: '' } });
@@ -583,6 +585,47 @@ app.get('/audit-logs', requireAuth, requireRole('OWNER', 'ADMIN', 'ACCOUNTANT'),
     if (req.query.entityId) filter.entityId = req.query.entityId;
     const logs = await AuditLog.find(filter).sort({ timestamp: -1 }).lean();
     res.json(logs);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+
+// --- Role UI List Routes ---
+
+app.get('/orders', requireAuth, requireRole('OWNER', 'ADMIN', 'SALESMAN', 'ACCOUNTANT', 'STORE'), async (req, res) => {
+  try {
+    const filter = req.user.role === 'SALESMAN' ? { createdBy: req.user.id } : {};
+    const orders = await Order.find(filter)
+      .populate('customer', 'name state gstin')
+      .populate('lines.item', 'sku name')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(orders);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/invoices', requireAuth, requireRole('OWNER', 'ADMIN', 'ACCOUNTANT'), async (req, res) => {
+  try {
+    const invoices = await Invoice.find()
+      .populate('customer', 'name state')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(invoices);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/production-runs', requireAuth, requireRole('OWNER', 'ADMIN', 'PRODUCTION', 'ACCOUNTANT'), async (req, res) => {
+  try {
+    const runs = await ProductionRun.find()
+      .populate('bom', 'name outputQtyPcs')
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json(runs);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

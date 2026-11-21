@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Order & Audit ERP</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; background: #f1f5f9; color: #0f172a; padding: 12px; }
+    .container { max-width: 960px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 10px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    h1 { font-size: 1.25rem; margin: 0 0 8px; }
+    h2 { font-size: 1rem; margin: 0 0 10px; color: #1e293b; }
+    label { display: block; font-size: 0.82rem; margin: 8px 0 4px; font-weight: 600; color: #334155; }
+    input, select, button { width: 100%; padding: 9px 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.92rem; }
+    button { background: #2563eb; color: #fff; border: none; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    button:hover { background: #1d4ed8; }
+    button.secondary { background: #e2e8f0; color: #0f172a; }
+    button.secondary:hover { background: #cbd5e1; }
+    button.warn { background: #d97706; }
+    button.ok { background: #16a34a; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .btn-row button { flex: 1 1 30%; margin-top: 0; font-size: 0.8rem; padding: 8px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
+    @media (min-width: 720px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+    .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    @media (min-width: 720px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+    .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
+    .kpi .val { font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
+    .kpi .lbl { font-size: 0.75rem; color: #64748b; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; }
+    .status-pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #e2e8f0; color: #1e293b; }
+    .net-banner { padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; margin-bottom: 10px; }
+    .net-online { background: #dcfce7; color: #166534; }
+    .net-offline { background: #fef3c7; color: #92400e; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
+    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #e2e8f0; }
+    .table-wrap { overflow-x: auto; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.76rem; margin-top: 8px; }
+    .hidden { display: none !important; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .topbar button { width: auto; margin: 0; padding: 6px 12px; background: #ef4444; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="netBanner" class="net-banner net-online">Network: Online</div>
+
+    <!-- Login Card -->
+    <div id="loginCard" class="card">
+      <h1>Order & Audit ERP</h1>
+      <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Sign in to load your role workspace.</p>
+      <label>Username</label>
+      <input id="username" placeholder="salesman1, admin, production, accountant, owner" />
+      <label>Password</label>
+      <input id="password" type="password" value="password123" />
+      <button onclick="login()">Sign In</button>
+      <div class="btn-row">
+        <button class="secondary" onclick="quickLogin('salesman1')">Salesman (Mobile)</button>
+        <button class="secondary" onclick="quickLogin('admin')">Factory Admin</button>
+        <button class="secondary" onclick="quickLogin('production')">Production</button>
+        <button class="secondary" onclick="quickLogin('accountant')">Accountant</button>
+        <button class="secondary" onclick="quickLogin('owner')">Owner</button>
+      </div>
+      <pre id="loginOut" class="hidden"></pre>
+    </div>
+
+    <!-- Authenticated Workspace -->
+    <div id="appArea" class="hidden">
+      <div class="card topbar">
+        <div>
+          <strong id="userName"></strong>
+          <span id="userRoleBadge" class="badge"></span>
+        </div>
+        <button onclick="logout()">Logout</button>
+      </div>
+
+      <!-- 1. SALESMAN WORKSPACE (Mobile-first, weak-network queue) -->
+      <div id="view-SALESMAN" class="role-view hidden">
+        <div class="card">
+          <h2>New Order (Weak-Network Safe)</h2>
+          <label>Customer</label>
+          <select id="smCustomer"></select>
+          <label>Product</label>
+          <select id="smProduct"></select>
+          <div class="grid-2">
+            <div>
+              <label>Quantity (pcs)</label>
+              <input id="smQty" type="number" value="10" min="1" />
+            </div>
+            <div>
+              <label>Rate per pc (₹)</label>
+              <input id="smRateRs" type="number" step="0.01" value="50.00" min="0.01" />
+            </div>
+          </div>
+          <button onclick="salesmanSubmitOrder()">Submit Order</button>
+          <button class="secondary" onclick="syncQueuedOrders()">Sync Queued Orders (<span id="queueCount">0</span>)</button>
+          <pre id="smOut" class="hidden"></pre>
+        </div>
+
+        <div class="card">
+          <h2>My Orders & Status</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
+              <tbody id="smOrdersBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Customer-Wise Sales</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Customer</th><th>Orders</th><th>Sales (₹)</th></tr></thead>
+              <tbody id="smCustomerSalesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. FACTORY ADMIN WORKSPACE (Desktop: Orders, GST Invoice, Dispatch, Payment) -->
+      <div id="view-ADMIN" class="role-view hidden">
+        <div class="card">
+          <h2>Orders — Verify, Invoice, Dispatch</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Customer</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="admOrdersBody"></tbody>
+            </table>
+          </div>
+          <pre id="admOut" class="hidden"></pre>
+        </div>
+
+        <div class="card">
+          <h2>Invoices — Record Payment</h2>
+          <label>Invoice</label>
+          <select id="admInvoiceSelect"></select>
+          <div class="grid-2">
+            <div>
+              <label>Amount (₹)</label>
+              <input id="admPayRs" type="number" step="0.01" value="100.00" />
+            </div>
+            <div>
+              <label>Mode</label>
+              <select id="admPayMode">
+                <option value="CASH">CASH</option>
+                <option value="UPI">UPI</option>
+                <option value="BANK">BANK</option>
+              </select>
+            </div>
+          </div>
+          <button class="ok" onclick="adminRecordPayment()">Record Payment</button>
+          <pre id="admPayOut" class="hidden"></pre>
+        </div>
+      </div>
+
+      <!-- 3. PRODUCTION SUPERVISOR WORKSPACE (Raw Material Receipts, Runs, Wastage, Audited Edit) -->
+      <div id="view-PRODUCTION" class="role-view hidden">
+        <div class="grid-2">
+          <div class="card">
+            <h2>Record Raw Material Receipt</h2>
+            <label>Supplier Name</label>
+            <input id="supName" placeholder="e.g. Sri Murugan Mills" />
+            <label>Material Item</label>
+            <select id="purItem"></select>
+            <div class="grid-2">
+              <div>
+                <label>Qty (base unit: g / ml / pc)</label>
+                <input id="purQtyBase" type="number" value="10000" min="1" />
+              </div>
+              <div>
+                <label>Rate / display unit (paise)</label>
+                <input id="purRatePaisa" type="number" value="4400" min="0" />
+              </div>
+            </div>
+            <button onclick="recordPurchase()">Save Material Receipt</button>
+            <pre id="purOut" class="hidden"></pre>
+          </div>
+
+          <div class="card">
+            <h2>Log Daily Production Run</h2>
+            <label>BOM ID</label>
+            <input id="runBomId" placeholder="Paste BOM ObjectId" />
+            <div class="grid-2">
+              <div>
+                <label>Batches</label>
+                <input id="runBatches" type="number" value="1" min="1" />
+              </div>
+              <div>
+                <label>Good Output (pcs)</label>
+                <input id="runGood" type="number" value="188" min="0" />
+              </div>
+              <div>
+                <label>Damaged Pouches</label>
+                <input id="runDamaged" type="number" value="6" min="0" />
+              </div>
+              <div>
+                <label>Cartons Used</label>
+                <input id="runCartons" type="number" value="9" min="0" />
+              </div>
+            </div>
+            <button class="ok" onclick="createRun()">Log Production Run</button>
+            <pre id="createRunOut" class="hidden"></pre>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Edit Production Run (Writes AuditLog)</h2>
+          <label>Production Run</label>
+          <select id="editRunSelect"></select>
+          <div class="grid-2">
+            <div>
+              <label>Good Output (pcs)</label>
+              <input id="editRunGood" type="number" min="0" />
+            </div>
+            <div>
+              <label>Damaged Pouches</label>
+              <input id="editRunDamaged" type="number" min="0" />
+            </div>
+          </div>
+          <label>Notes</label>
+          <input id="editRunNotes" placeholder="Shift / wastage note" />
+          <button class="warn" onclick="patchProductionRun()">Save Edit & Write Audit Log</button>
+          <pre id="editRunOut" class="hidden"></pre>
+        </div>
+      </div>
+
+      <!-- 4. ACCOUNTANT / AUDITOR WORKSPACE (Read-only Reports, CSV Export, Audit Trail) -->
+      <div id="view-ACCOUNTANT" class="role-view hidden">
+        <div class="card">
+          <h2>Accounting & Audit Reports (Read-Only)</h2>
+          <div class="btn-row">
+            <button onclick="pullReport('sales')">Sales</button>
+            <button onclick="pullReport('gst')">GST</button>
+            <button onclick="pullReport('stock')">Stock</button>
+            <button onclick="pullReport('purchase')">Purchase</button>
+            <button onclick="pullReport('collection')">Collection</button>
+            <button onclick="pullReport('outstanding')">Outstanding</button>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="secondary" onclick="downloadCsv('sales')">CSV: Sales</button>
+            <button class="secondary" onclick="downloadCsv('gst')">CSV: GST</button>
+            <button class="secondary" onclick="downloadCsv('stock')">CSV: Stock</button>
+            <button class="secondary" onclick="downloadCsv('outstanding')">CSV: Outstanding</button>
+          </div>
+          <pre id="accReportOut" class="hidden"></pre>
+        </div>
+
+        <div class="card">
+          <h2>Audit Log Trail</h2>
+          <button class="secondary" onclick="loadAuditTrail('accAuditOut')">Load Audit Logs</button>
+          <pre id="accAuditOut" class="hidden"></pre>
+        </div>
+      </div>
+
+      <!-- 5. OWNER WORKSPACE (Executive Summary) -->
+      <div id="view-OWNER" class="role-view hidden">
+        <div class="card">
+          <h2>Owner Daily Summary</h2>
+          <div class="kpi-grid">
+            <div class="kpi"><div class="lbl">Today's Orders</div><div class="val" id="ownTodayOrders">-</div></div>
+            <div class="kpi"><div class="lbl">Today's Order Value</div><div class="val" id="ownTodayValue">-</div></div>
+            <div class="kpi"><div class="lbl">Variance Alerts</div><div class="val" id="ownAlerts">-</div></div>
+            <div class="kpi"><div class="lbl">Outstanding Dues</div><div class="val" id="ownDues">-</div></div>
+          </div>
+          <button class="secondary" onclick="loadOwnerSummary()">Refresh Summary</button>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <h2>Stock Levels</h2>
+            <pre id="ownStockOut"></pre>
+          </div>
+          <div class="card">
+            <h2>Latest Run Cost & Audit</h2>
+            <pre id="ownCostOut"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let token = '';
+    let user = null;
+    const QUEUE_KEY = 'order_audit_offline_queue_v1';
+
+    function getQueue() {
+      try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
+    }
+    function setQueue(q) {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+      const el = document.getElementById('queueCount');
+      if (el) el.textContent = q.length;
+    }
+    function updateNetBanner() {
+      const b = document.getElementById('netBanner');
+      if (navigator.onLine) {
+        b.textContent = 'Network: Online';
+        b.className = 'net-banner net-online';
+      } else {
+        b.textContent = 'Network: Offline / Weak — Orders will queue locally';
+        b.className = 'net-banner net-offline';
+      }
+    }
+    window.addEventListener('online', () => { updateNetBanner(); if (token && user?.role === 'SALESMAN') syncQueuedOrders(); });
+    window.addEventListener('offline', updateNetBanner);
+
+    function show(id, data) {
+      const el = document.getElementById(id);
+      el.classList.remove('hidden');
+      el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+
+    function authHeaders(extra = {}) {
+      return { Authorization: 'Bearer ' + token, ...extra };
+    }
+
+    function quickLogin(u) {
+      document.getElementById('username').value = u;
+      document.getElementById('password').value = 'password123';
+      login();
+    }
+
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      if (!res.ok) return show('loginOut', data);
+
+      token = data.token;
+      user = data.user;
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('appArea').classList.remove('hidden');
+      document.getElementById('userName').textContent = user.name;
+      const badge = document.getElementById('userRoleBadge');
+      badge.textContent = user.role;
+      badge.style.background = '#dbeafe';
+      badge.style.color = '#1e40af';
+
+      document.querySelectorAll('.role-view').forEach(v => v.classList.add('hidden'));
+      const activeViewId = user.role === 'OWNER' && !document.getElementById('view-OWNER') ? 'view-ADMIN' : 'view-' + user.role;
+      const targetView = document.getElementById(activeViewId) || document.getElementById('view-ADMIN');
+      targetView.classList.remove('hidden');
+
+      if (user.role === 'SALESMAN') await initSalesman();
+      if (user.role === 'ADMIN') await initAdmin();
+      if (user.role === 'PRODUCTION') await initProduction();
+      if (user.role === 'ACCOUNTANT') await initAccountant();
+      if (user.role === 'OWNER') await loadOwnerSummary();
+    }
+
+    function logout() {
+      token = '';
+      user = null;
+      document.getElementById('appArea').classList.add('hidden');
+      document.getElementById('loginCard').classList.remove('hidden');
+    }
+
+    // --- SALESMAN ---
+    async function initSalesman() {
+      setQueue(getQueue());
+      const [custRes, itemRes] = await Promise.all([fetch('/customers'), fetch('/items')]);
+      const customers = await custRes.json();
+      const items = await itemRes.json();
+      document.getElementById('smCustomer').innerHTML = customers.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
+      document.getElementById('smProduct').innerHTML = items.map(i => `<option value="${i._id}">${i.sku} — ${i.name}</option>`).join('');
+      await refreshSalesmanOrders();
+    }
+
+    async function salesmanSubmitOrder() {
+      const payload = {
+        customer: document.getElementById('smCustomer').value,
+        lines: [{
+          item: document.getElementById('smProduct').value,
+          qtyPcs: Number(document.getElementById('smQty').value),
+          ratePerPcPaisa: Math.round(Number(document.getElementById('smRateRs').value) * 100)
+        }]
+      };
+      if (!navigator.onLine) {
+        const q = getQueue();
+        q.push(payload);
+        setQueue(q);
+        return show('smOut', { queuedOffline: true, pendingCount: q.length });
+      }
+      try {
+        const res = await fetch('/orders', {
+          method: 'POST',
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
+          body: JSON.stringify(payload)
+        });
+        const body = await res.json();
+        show('smOut', { status: res.status, body });
+        if (res.ok) await refreshSalesmanOrders();
+      } catch {
+        const q = getQueue();
+        q.push(payload);
+        setQueue(q);
+        show('smOut', { queuedOnNetworkError: true, pendingCount: q.length });
+      }
+    }
+
+    async function syncQueuedOrders() {
+      const q = getQueue();
+      const remaining = [];
+      for (const item of q) {
+        try {
+          const res = await fetch('/orders', {
+            method: 'POST',
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify(item)
+          });
+          if (!res.ok) remaining.push(item);
+        } catch {
+          remaining.push(item);
+        }
+      }
+      setQueue(remaining);
+      await refreshSalesmanOrders();
+      show('smOut', { synced: q.length - remaining.length, remaining: remaining.length });
+    }
+
+    async function refreshSalesmanOrders() {
+      const res = await fetch('/orders', { headers: authHeaders() });
+      const orders = await res.json();
+      if (!Array.isArray(orders)) return;
+
+      document.getElementById('smOrdersBody').innerHTML = orders.map(o => `
+        <tr>
+          <td>${o.customer?.name || o.customer}</td>
+          <td>₹${((o.totalPaisa || 0) / 100).toFixed(2)}</td>
+          <td><span class="status-pill">${o.status}</span></td>
+        </tr>
+      `).join('');
+
+      const byCust = new Map();
+      for (const o of orders) {
+        const cname = o.customer?.name || String(o.customer);
+        const cur = byCust.get(cname) || { name: cname, count: 0, paisa: 0 };
+        cur.count += 1;
+        cur.paisa += o.totalPaisa || 0;
+        byCust.set(cname, cur);
+      }
+      document.getElementById('smCustomerSalesBody').innerHTML = [...byCust.values()].map(c => `
+        <tr>
+          <td>${c.name}</td>
+          <td>${c.count}</td>
+          <td>₹${(c.paisa / 100).toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // --- FACTORY ADMIN ---
+    async function initAdmin() {
+      const [ordRes, invRes] = await Promise.all([
+        fetch('/orders', { headers: authHeaders() }),
+        fetch('/invoices', { headers: authHeaders() })
+      ]);
+      const orders = await ordRes.json();
+      const invoices = await invRes.json();
+
+      document.getElementById('admOrdersBody').innerHTML = (Array.isArray(orders) ? orders : []).map(o => `
+        <tr>
+          <td>${o.customer?.name || o.customer}</td>
+          <td>₹${((o.totalPaisa || 0) / 100).toFixed(2)}</td>
+          <td><span class="status-pill">${o.status}</span></td>
+          <td>
+            <button class="secondary" style="width:auto;padding:4px 8px;margin:2px 0;" onclick="adminOrderAction('${o._id}','approve')">Verify/Approve</button>
+            <button class="secondary" style="width:auto;padding:4px 8px;margin:2px 0;" onclick="adminOrderAction('${o._id}','invoice')">GST Invoice</button>
+            <button class="secondary" style="width:auto;padding:4px 8px;margin:2px 0;" onclick="adminOrderAction('${o._id}','dispatch')">Dispatch</button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('admInvoiceSelect').innerHTML = (Array.isArray(invoices) ? invoices : []).map(inv => `
+        <option value="${inv._id}">${inv.invoiceNumber || inv._id} — ₹${((inv.grandTotalPaisa || inv.totalPaisa || 0) / 100).toFixed(2)}</option>
+      `).join('');
+    }
+
+    async function adminOrderAction(orderId, action) {
+      const res = await fetch(`/orders/${orderId}/${action}`, {
+        method: 'POST',
+        headers: authHeaders()
+      });
+      show('admOut', { action, status: res.status, body: await res.json() });
+      await initAdmin();
+    }
+
+    async function adminRecordPayment() {
+      const invoiceId = document.getElementById('admInvoiceSelect').value;
+      const amountPaisa = Math.round(Number(document.getElementById('admPayRs').value) * 100);
+      const mode = document.getElementById('admPayMode').value;
+      const res = await fetch('/payments', {
+        method: 'POST',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ invoice: invoiceId, amountPaisa, mode })
+      });
+      show('admPayOut', { status: res.status, body: await res.json() });
+    }
+
+    // --- PRODUCTION SUPERVISOR ---
+    async function initProduction() {
+      const [itemRes, runRes] = await Promise.all([
+        fetch('/items'),
+        fetch('/production-runs', { headers: authHeaders() })
+      ]);
+      const items = await itemRes.json();
+      const runs = await runRes.json();
+      document.getElementById('purItem').innerHTML = items.map(i => `<option value="${i._id}">${i.sku} — ${i.name}</option>`).join('');
+      const runList = Array.isArray(runs) ? runs : [];
+      document.getElementById('editRunSelect').innerHTML = runList.map(r => `<option value="${r._id}">${r._id} (good: ${r.goodOutputPcs}, dmg: ${r.damagedPcs})</option>`).join('');
+      if (runList[0]) {
+        document.getElementById('editRunGood').value = runList[0].goodOutputPcs ?? 0;
+        document.getElementById('editRunDamaged').value = runList[0].damagedPcs ?? 0;
+        document.getElementById('editRunNotes').value = runList[0].notes || '';
+      }
+    }
+
+    async function recordPurchase() {
+      const res = await fetch('/purchases', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supplierName: document.getElementById('supName').value.trim() || 'Supplier',
+          lines: [{
+            item: document.getElementById('purItem').value,
+            qtyBase: Number(document.getElementById('purQtyBase').value),
+            ratePerDisplayUnitPaisa: Number(document.getElementById('purRatePaisa').value)
+          }]
+        })
+      });
+      show('purOut', { status: res.status, body: await res.json() });
+    }
+
+    async function createRun() {
+      const res = await fetch('/production-runs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bom: document.getElementById('runBomId').value.trim(),
+          batches: Number(document.getElementById('runBatches').value),
+          goodOutputPcs: Number(document.getElementById('runGood').value),
+          damagedPcs: Number(document.getElementById('runDamaged').value),
+          cartonsUsed: Number(document.getElementById('runCartons').value)
+        })
+      });
+      show('createRunOut', { status: res.status, body: await res.json() });
+      await initProduction();
+    }
+
+    async function patchProductionRun() {
+      const id = document.getElementById('editRunSelect').value;
+      const res = await fetch(`/production-runs/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+          goodOutputPcs: Number(document.getElementById('editRunGood').value),
+          damagedPcs: Number(document.getElementById('editRunDamaged').value),
+          notes: document.getElementById('editRunNotes').value
+        })
+      });
+      show('editRunOut', { status: res.status, body: await res.json() });
+    }
+
+    // --- ACCOUNTANT / AUDITOR ---
+    async function initAccountant() {
+      await pullReport('sales');
+    }
+
+    async function pullReport(name) {
+      const res = await fetch(`/reports/${name}`);
+      show('accReportOut', { status: res.status, body: await res.json() });
+    }
+
+    function downloadCsv(name) {
+      window.open(`/reports/${name}?format=csv`, '_blank');
+    }
+
+    async function loadAuditTrail(targetId) {
+      const res = await fetch('/audit-logs', { headers: authHeaders() });
+      show(targetId, { status: res.status, body: await res.json() });
+    }
+
+    // --- OWNER ---
+    async function loadOwnerSummary() {
+      const [ordRes, stockRes, outRes, runRes, audRes] = await Promise.all([
+        fetch('/orders', { headers: authHeaders() }),
+        fetch('/stock'),
+        fetch('/reports/outstanding'),
+        fetch('/production-runs', { headers: authHeaders() }),
+        fetch('/audit-logs', { headers: authHeaders() })
+      ]);
+      const orders = await ordRes.json();
+      const stock = await stockRes.json();
+      const out = await outRes.json();
+      const runs = await runRes.json();
+      const audits = await audRes.json();
+
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const todays = Array.isArray(orders) ? orders.filter(o => (o.createdAt || '').startsWith(todayStr)) : [];
+      const todayPaisa = todays.reduce((s, o) => s + (o.totalPaisa || 0), 0);
+      const duePaisa = (out.rows || []).reduce((s, r) => s + (r.balancePaisa || r.outstandingPaisa || 0), 0);
+
+      document.getElementById('ownTodayOrders').textContent = todays.length;
+      document.getElementById('ownTodayValue').textContent = '₹' + (todayPaisa / 100).toFixed(2);
+      document.getElementById('ownDues').textContent = '₹' + (duePaisa / 100).toFixed(2);
+
+      let costInfo = null;
+      if (Array.isArray(runs) && runs[0]) {
+        const cRes = await fetch(`/production-runs/${runs[0]._id}/cost`);
+        costInfo = await cRes.json();
+        const vRes = await fetch(`/production-runs/${runs[0]._id}/variance`);
+        const vInfo = await vRes.json();
+        const alerts = (vInfo.materials || []).filter(m => m.flagged).length + (vInfo.yield?.flagged ? 1 : 0);
+        document.getElementById('ownAlerts').textContent = alerts;
+      } else {
+        document.getElementById('ownAlerts').textContent = '0';
+      }
+
+      document.getElementById('ownStockOut').textContent = JSON.stringify(stock, null, 2);
+      document.getElementById('ownCostOut').textContent = JSON.stringify({ latestCost: costInfo, recentAudits: (Array.isArray(audits) ? audits.slice(0, 3) : audits) }, null, 2);
+    }
+
+    updateNetBanner();
+  </script>
+</body>
+</html>
