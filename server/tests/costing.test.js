@@ -1,4 +1,4 @@
-const { weightedAvgRatePaisa, calculateRunCost } = require('./costing');
+const { weightedAvgRatePaisa, calculateRunCost } = require('../costing');
 
 describe('Production Run Costing', () => {
   test('weighted average for flour: 100 kg @ Rs 42 + 60 kg @ Rs 45 = Rs 43.125/kg', () => {
