@@ -101,3 +101,7 @@ Run: `goodOutputPcs: 188`, `damagedPcs: 6`, `cartonsUsed: 9`; Flour `40000 g`, O
 - **Damaged Pouches Rule (Wastage Absorption):** All `194` issued pouches (`188` good + `6` damaged) at ₹2.50 (`48500` paise) are included in run material cost. Damaged pouches (wastage) are explicitly absorbed into the unit cost of the `188` good packets, giving `585800 / 188 = 3116` paise (`₹31.16`/packet).
 - **Flour Purchase Note:** The 60 kg @ ₹45/kg flour purchase (`Kaveri Flour Mills`) used to verify the ₹43.125/kg weighted average was posted as a test write on the live database *after* the Day 4 reseed, rather than as part of the initial Section 5 seed script.
 - **Why ₹31.16 vs. Brief's ≈₹31.14 (+2 paise/packet):** Using exact integer-paise arithmetic with full precision on the weighted-average flour rate (`₹43.125/kg` × 40 kg = `172500` paise), Oil (`147000`), Spice (`18000`), all `194` pouches (`48500`, absorbing the 6 damaged pouches), `9` cartons (`19800`), plus `180000` paise overhead yields `585800 / 188 = 3115.96` paise → **`3116` paise (`₹31.16`)**. The 2-paisa difference from the brief's `≈₹31.14` estimate reflects exact unrounded weighted-average material inputs and full wastage absorption rather than an approximate estimate.
+
+## Day 6 Known Gaps
+
+- **Mobile Order Screen (375px):** This repository currently implements the Node/Express/Mongoose backend API only. A responsive 375px mobile order-entry UI screen has not been built yet and is tracked as a known gap.
