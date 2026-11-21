@@ -526,16 +526,22 @@ app.get('/reports/:name', async (req, res) => {
 
 app.patch('/production-runs/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'PRODUCTION'), async (req, res) => {
   try {
-    const run = await ProductionRun.findById(req.params.id);
-    if (!run) return res.status(404).json({ error: 'ProductionRun not found' });
+    const existing = await ProductionRun.findById(req.params.id).lean();
+    if (!existing) return res.status(404).json({ error: 'ProductionRun not found' });
 
-    const before = run.toObject();
+    const before = { ...existing, notes: existing.notes ?? '' };
+    const updates = {};
     const allowed = ['goodOutputPcs', 'damagedPcs', 'cartonsUsed', 'notes'];
     for (const key of allowed) {
-      if (req.body[key] !== undefined) run[key] = req.body[key];
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
-    await run.save();
-    const after = run.toObject();
+
+    const updated = await ProductionRun.findByIdAndUpdate(
+      req.params.id,
+      { $set: updates },
+      { new: true, strict: false }
+    ).lean();
+    const after = { ...updated, notes: updated.notes ?? '' };
 
     const auditLog = await writeAuditLog({
       entityType: 'ProductionRun',

@@ -105,3 +105,14 @@ Run: `goodOutputPcs: 188`, `damagedPcs: 6`, `cartonsUsed: 9`; Flour `40000 g`, O
 ## Day 6 Known Gaps
 
 - **Mobile Order Screen (375px):** This repository currently implements the Node/Express/Mongoose backend API only. A responsive 375px mobile order-entry UI screen has not been built yet and is tracked as a known gap.
+
+## Day 6 Role-Specific Web Views (375px Responsive)
+
+- **Salesman (`SALESMAN`):** Mobile-first order creation with offline/weak-network queue (`localStorage` + sync), order list with status, and customer-wise sales summary.
+- **Factory Admin (`ADMIN`):** Order verification/approval, GST invoicing, dispatch recording, and payment recording against invoices.
+- **Production Supervisor (`PRODUCTION`):** Raw-material receipt logging, production run creation, and audited production run edits (`PATCH /production-runs/:id`) writing `before` and `after` snapshots to `AuditLog`.
+- **Accountant / Auditor (`ACCOUNTANT`):** Read-only access to `sales`, `gst`, `stock`, `purchase`, `collection`, and `outstanding` reports (JSON + CSV export) and `AuditLog` entries.
+- **Owner (`OWNER`):** Summary view covering today's orders and value, stock levels, variance alerts, run costing, and outstanding dues.
+
+### Known Gaps
+- Dedicated standalone 375px mobile order-entry route/page beyond the responsive single-page dashboard (`server/public/index.html`) is tracked as a follow-up item.
