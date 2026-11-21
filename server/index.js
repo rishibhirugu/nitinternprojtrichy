@@ -8,6 +8,7 @@ const BOM = require('./models/BOM');
 const Purchase = require('./models/Purchase');
 const ProductionRun = require('./models/ProductionRun');
 const Customer = require('./models/Customer');
+const { Invoice } = require('./models/Invoice');
 const { postProductionRun } = require('./productionService');
 const { variancePct, flag } = require('./variance');
 const {
@@ -23,9 +24,18 @@ const {
   getCustomerOutstanding
 } = require('./paymentService');
 const { generateReport, toCsv } = require('./reportService');
+const { weightedAvgRatePaisa, calculateRunCost } = require('./costing');
 
 const app = express();
 app.use(express.json());
+
+const OPENING_RATES_PAISA = {
+  'RM-FLOUR': 4200,   // Rs 42/kg
+  'RM-OIL': 14000,    // Rs 140/L
+  'RM-SPICE': 15000,  // Rs 150/kg
+  'PKG-POUCH': 250,   // Rs 2.50/pc
+  'PKG-CART': 2200    // Rs 22/pc
+};
 
 // GET /items — list all master items
 app.get('/items', async (req, res) => {
@@ -254,6 +264,77 @@ app.get('/production-runs/:id/variance', async (req, res) => {
   }
 });
 
+// GET /production-runs/:id/cost — weighted-average cost per good packet
+app.get('/production-runs/:id/cost', async (req, res) => {
+  try {
+    const run = await ProductionRun.findById(req.params.id)
+      .populate({
+        path: 'bom',
+        populate: [
+          { path: 'finishedGood', select: 'sku name' },
+          { path: 'lines.item', select: 'sku name displayFactor' }
+        ]
+      })
+      .populate('issues.item', 'sku name displayFactor')
+      .lean();
+
+    if (!run) return res.status(404).json({ error: 'ProductionRun not found' });
+
+    const openingLedgers = await StockLedger.find({ eventType: 'OPENING_STOCK' }).lean();
+    const openingMap = new Map(openingLedgers.map((l) => [l.item.toString(), l.qtyDelta]));
+    const purchases = await Purchase.find().lean();
+
+    const getAvgRate = (item) => {
+      const entries = [];
+      const openQty = openingMap.get(item._id.toString()) || 0;
+      if (openQty > 0 && OPENING_RATES_PAISA[item.sku] !== undefined) {
+        entries.push({ qtyBase: openQty, ratePerDisplayUnitPaisa: OPENING_RATES_PAISA[item.sku] });
+      }
+      for (const p of purchases) {
+        for (const line of p.lines) {
+          if (line.item.toString() === item._id.toString()) {
+            entries.push({ qtyBase: line.qtyBase, ratePerDisplayUnitPaisa: line.ratePerDisplayUnitPaisa });
+          }
+        }
+      }
+      return weightedAvgRatePaisa(entries);
+    };
+
+    const issueMap = new Map(run.issues.map((l) => [l.item._id.toString(), l.qtyBase]));
+    const materialLines = run.bom.lines.map((bomLine) => {
+      const item = bomLine.item;
+      let qtyBase = issueMap.get(item._id.toString()) || 0;
+      if (item.sku === 'PKG-POUCH') qtyBase = run.goodOutputPcs + run.damagedPcs;
+      if (item.sku === 'PKG-CART') qtyBase = run.cartonsUsed;
+
+      return {
+        sku: item.sku,
+        name: item.name,
+        qtyBase,
+        displayFactor: item.displayFactor,
+        avgRatePerDisplayUnitPaisa: getAvgRate(item)
+      };
+    });
+
+    const cost = calculateRunCost({
+      materialLines,
+      labourPaisa: 120000,
+      gasPowerPaisa: 60000,
+      goodOutputPcs: run.goodOutputPcs
+    });
+
+    res.json({
+      productionRunId: run._id,
+      finishedGood: run.bom.finishedGood.name,
+      valuationMethod: 'WEIGHTED_AVERAGE',
+      overheadRule: 'Labour (120000 paise) + Gas/Power (60000 paise) allocated across good output packets only',
+      ...cost
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // --- Day 4: Customers, Orders, GST Invoices, Dispatch, Credit Notes ---
 
 app.post('/customers', async (req, res) => {
@@ -299,6 +380,16 @@ app.post('/orders/:id/invoice', async (req, res) => {
   try {
     const invoice = await invoiceOrder(req.params.id);
     res.status(201).json(invoice);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/invoices/:id', async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id).lean();
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    res.json(invoice);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
