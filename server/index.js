@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const connectDB = require('./db');
 const Item = require('./models/Item');
 const StockLedger = require('./models/StockLedger');
@@ -9,6 +11,7 @@ const Purchase = require('./models/Purchase');
 const ProductionRun = require('./models/ProductionRun');
 const Customer = require('./models/Customer');
 const { Invoice } = require('./models/Invoice');
+const { User } = require('./models/User');
 const { postProductionRun } = require('./productionService');
 const { variancePct, flag } = require('./variance');
 const {
@@ -29,6 +32,8 @@ const { weightedAvgRatePaisa, calculateRunCost } = require('./costing');
 const app = express();
 app.use(express.json());
 
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-order-audit-secret';
+
 const OPENING_RATES_PAISA = {
   'RM-FLOUR': 4200,   // Rs 42/kg
   'RM-OIL': 14000,    // Rs 140/L
@@ -36,6 +41,34 @@ const OPENING_RATES_PAISA = {
   'PKG-POUCH': 250,   // Rs 2.50/pc
   'PKG-CART': 2200    // Rs 22/pc
 };
+
+// --- Day 6: Auth ---
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: 'username and password are required' });
+    }
+    const user = await User.findOne({ username: username.toLowerCase() });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const ok = await bcrypt.compare(password, user.passwordHash);
+    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const token = jwt.sign(
+      { sub: user._id.toString(), username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.json({
+      token,
+      user: { id: user._id, username: user.username, name: user.name, role: user.role }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // GET /items — list all master items
 app.get('/items', async (req, res) => {
