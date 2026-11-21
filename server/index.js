@@ -7,8 +7,16 @@ const StockLedger = require('./models/StockLedger');
 const BOM = require('./models/BOM');
 const Purchase = require('./models/Purchase');
 const ProductionRun = require('./models/ProductionRun');
-const { postProductionRun } = require('./ProductionService');
+const Customer = require('./models/Customer');
+const { postProductionRun } = require('./productionService');
 const { variancePct, flag } = require('./variance');
+const {
+  createOrder,
+  approveOrder,
+  invoiceOrder,
+  dispatchOrder,
+  createCreditNote
+} = require('./orderService');
 
 const app = express();
 app.use(express.json());
@@ -235,6 +243,74 @@ app.get('/production-runs/:id/variance', async (req, res) => {
       materials,
       packaging
     });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Day 4: Customers, Orders, GST Invoices, Dispatch, Credit Notes ---
+
+app.post('/customers', async (req, res) => {
+  try {
+    const customer = await Customer.create(req.body);
+    res.status(201).json(customer);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/customers', async (req, res) => {
+  try {
+    const customers = await Customer.find().lean();
+    res.json(customers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/orders', async (req, res) => {
+  try {
+    const order = await createOrder(req.body);
+    res.status(201).json(order);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/orders/:id/approve', async (req, res) => {
+  try {
+    const order = await approveOrder(req.params.id);
+    res.json(order);
+  } catch (err) {
+    if (err.payload) {
+      return res.status(err.statusCode || 409).json(err.payload);
+    }
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/orders/:id/invoice', async (req, res) => {
+  try {
+    const invoice = await invoiceOrder(req.params.id);
+    res.status(201).json(invoice);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/orders/:id/dispatch', async (req, res) => {
+  try {
+    const order = await dispatchOrder(req.params.id);
+    res.json(order);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/invoices/:id/credit-note', async (req, res) => {
+  try {
+    const cn = await createCreditNote(req.params.id, req.body?.reason);
+    res.status(201).json(cn);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
