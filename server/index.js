@@ -22,6 +22,7 @@ const {
   getInvoiceOutstanding,
   getCustomerOutstanding
 } = require('./paymentService');
+const { generateReport, toCsv } = require('./reportService');
 
 const app = express();
 app.use(express.json());
@@ -345,6 +346,23 @@ app.get('/customers/:id/outstanding', async (req, res) => {
   try {
     const data = await getCustomerOutstanding(req.params.id);
     res.json(data);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// --- Day 5: Reports & CSV Export ---
+
+app.get('/reports/:name', async (req, res) => {
+  try {
+    const { headers, rows } = await generateReport(req.params.name, req.query);
+    if (req.query.format === 'csv') {
+      const csv = toCsv(headers, rows);
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${req.params.name}.csv"`);
+      return res.send(csv);
+    }
+    res.json({ report: req.params.name, count: rows.length, rows });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -1,0 +1,5 @@
+﻿date,sku,itemName,eventType,qtyDelta,baseUnit,sourceType,note
+2026-11-21T11:41:27.720Z,FG-MUR200,Murukku 200 g,OPENING_STOCK,50,pcs,,Initial benchmark opening stock
+2026-11-21T11:44:28.141Z,FG-MUR200,Murukku 200 g,PRODUCTION_OUTPUT,188,pcs,ProductionRun,Production output (188 pcs)
+2026-11-21T11:44:30.450Z,FG-MUR200,Murukku 200 g,DISPATCH,-150,pcs,Order,Order dispatch: ORD-2026-0001
+2026-11-21T11:44:31.770Z,FG-MUR200,Murukku 200 g,PRODUCTION_OUTPUT,200,pcs,ProductionRun,Production output (200 pcs)
