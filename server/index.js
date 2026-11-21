@@ -10,6 +10,16 @@ const Purchase = require('./models/Purchase');
 const app = express();
 app.use(express.json());
 
+// GET /items — list all master items
+app.get('/items', async (req, res) => {
+  try {
+    const items = await Item.find().sort({ category: 1, sku: 1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /stock — current balances summed from StockLedger
 app.get('/stock', async (req, res) => {
   try {
@@ -49,6 +59,16 @@ app.get('/boms/:id', async (req, res) => {
     res.json(bom);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /purchases — list all saved purchases
+app.get('/purchases', async (req, res) => {
+  try {
+    const purchases = await Purchase.find().sort({ createdAt: -1 });
+    res.json(purchases);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -125,4 +145,4 @@ app.post('/purchases', async (req, res) => {
 const PORT = process.env.PORT || 4000;
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-}); 
+});
