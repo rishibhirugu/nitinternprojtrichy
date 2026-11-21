@@ -10,6 +10,7 @@ const USERS = [
   { username: 'salesman2',  name: 'Salesman Two',     role: 'SALESMAN',   password: 'password123' },
   { username: 'production', name: 'Production Lead',  role: 'PRODUCTION', password: 'password123' },
   { username: 'accountant', name: 'Accounts Officer', role: 'ACCOUNTANT', password: 'password123' },
+  { username: 'owner',      name: 'Business Owner',   role: 'OWNER',      password: 'password123' },
   { username: 'store',      name: 'Store Keeper',     role: 'STORE',      password: 'password123' }
 ];
 

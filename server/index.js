@@ -400,7 +400,7 @@ app.get('/customers', async (req, res) => {
   }
 });
 
-app.post('/orders', requireAuth, requireRole('ADMIN', 'SALESMAN'), async (req, res) => {
+app.post('/orders', requireAuth, requireRole('OWNER', 'ADMIN', 'SALESMAN'), async (req, res) => {
   try {
     const order = await createOrder(req.body);
     order.createdBy = req.user.id;
@@ -411,7 +411,7 @@ app.post('/orders', requireAuth, requireRole('ADMIN', 'SALESMAN'), async (req, r
   }
 });
 
-app.get('/orders/:id', requireAuth, requireRole('ADMIN', 'SALESMAN', 'ACCOUNTANT', 'STORE'), async (req, res) => {
+app.get('/orders/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'SALESMAN', 'ACCOUNTANT', 'STORE'), async (req, res) => {
   try {
     const order = await Order.findById(req.params.id).lean();
     if (!order) return res.status(404).json({ error: 'Order not found' });
@@ -445,7 +445,7 @@ app.post('/orders/:id/invoice', async (req, res) => {
   }
 });
 
-app.get('/invoices/:id', requireAuth, requireRole('ADMIN', 'ACCOUNTANT', 'SALESMAN'), async (req, res) => {
+app.get('/invoices/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'ACCOUNTANT', 'SALESMAN'), async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id).lean();
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
@@ -475,7 +475,7 @@ app.post('/invoices/:id/credit-note', async (req, res) => {
 
 // --- Day 5: Payments & Outstanding ---
 
-app.post('/payments', requireAuth, requireRole('ADMIN', 'SALESMAN'), async (req, res) => {
+app.post('/payments', requireAuth, requireRole('OWNER', 'ADMIN', 'SALESMAN'), async (req, res) => {
   try {
     const payment = await recordPayment(req.body);
     res.status(201).json(payment);
@@ -522,7 +522,7 @@ app.get('/reports/:name', async (req, res) => {
 
 // --- Day 6: Audited Edits & AuditLog ---
 
-app.patch('/production-runs/:id', requireAuth, requireRole('ADMIN', 'PRODUCTION'), async (req, res) => {
+app.patch('/production-runs/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'PRODUCTION'), async (req, res) => {
   try {
     const run = await ProductionRun.findById(req.params.id);
     if (!run) return res.status(404).json({ error: 'ProductionRun not found' });
@@ -549,7 +549,7 @@ app.patch('/production-runs/:id', requireAuth, requireRole('ADMIN', 'PRODUCTION'
   }
 });
 
-app.patch('/invoices/:id', requireAuth, requireRole('ADMIN', 'ACCOUNTANT'), async (req, res) => {
+app.patch('/invoices/:id', requireAuth, requireRole('OWNER', 'ADMIN', 'ACCOUNTANT'), async (req, res) => {
   try {
     const invoice = await Invoice.findById(req.params.id);
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
@@ -576,7 +576,7 @@ app.patch('/invoices/:id', requireAuth, requireRole('ADMIN', 'ACCOUNTANT'), asyn
   }
 });
 
-app.get('/audit-logs', requireAuth, requireRole('ADMIN', 'ACCOUNTANT'), async (req, res) => {
+app.get('/audit-logs', requireAuth, requireRole('OWNER', 'ADMIN', 'ACCOUNTANT'), async (req, res) => {
   try {
     const filter = {};
     if (req.query.entityType) filter.entityType = req.query.entityType;
