@@ -6,6 +6,9 @@ const Item = require('./models/Item');
 const StockLedger = require('./models/StockLedger');
 const BOM = require('./models/BOM');
 const Purchase = require('./models/Purchase');
+const ProductionRun = require('./models/ProductionRun');
+const { postProductionRun } = require('./ProductionService');
+const { variancePct, flag } = require('./variance');
 
 const app = express();
 app.use(express.json());
@@ -139,6 +142,101 @@ app.post('/purchases', async (req, res) => {
     res.status(400).json({ error: err.message });
   } finally {
     session.endSession();
+  }
+});
+
+// POST /production-runs — transactional production run + ledger entries
+app.post('/production-runs', async (req, res) => {
+  try {
+    const run = await postProductionRun(req.body);
+    res.status(201).json(run);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GET /production-runs/:id/variance — planned vs actual table with flags
+app.get('/production-runs/:id/variance', async (req, res) => {
+  try {
+    const run = await ProductionRun.findById(req.params.id)
+      .populate({
+        path: 'bom',
+        populate: [
+          { path: 'finishedGood', select: 'sku name baseUnit displayUnit displayFactor' },
+          { path: 'lines.item', select: 'sku name category baseUnit displayUnit displayFactor' }
+        ]
+      })
+      .populate('issues.item', 'sku name baseUnit displayUnit displayFactor');
+
+    if (!run) return res.status(404).json({ error: 'ProductionRun not found' });
+
+    const plannedOutputPcs = run.bom.outputQtyPcs * run.batches;
+    const yieldPct = variancePct(run.goodOutputPcs, plannedOutputPcs);
+
+    const issueMap = new Map(
+      run.issues.map((line) => [line.item._id.toString(), line.qtyBase])
+    );
+
+    const materials = [];
+    let packaging = {};
+
+    for (const bomLine of run.bom.lines) {
+      const item = bomLine.item;
+      const plannedQtyBase = bomLine.qtyBase * run.batches;
+
+      if (item.sku === 'PKG-POUCH') {
+        const totalUsed = run.goodOutputPcs + run.damagedPcs;
+        packaging.pouches = {
+          sku: item.sku,
+          name: item.name,
+          plannedQtyBase,
+          goodUsed: run.goodOutputPcs,
+          damagedPcs: run.damagedPcs,
+          totalIssued: totalUsed,
+          damageNote: `${run.damagedPcs} damaged pouches reported separately from yield loss`
+        };
+        continue;
+      }
+
+      if (item.sku === 'PKG-CART') {
+        packaging.cartons = {
+          sku: item.sku,
+          name: item.name,
+          plannedQtyBase,
+          actualQtyBase: run.cartonsUsed
+        };
+        continue;
+      }
+
+      const actualQtyBase = issueMap.get(item._id.toString()) || 0;
+      const pct = variancePct(actualQtyBase, plannedQtyBase);
+
+      materials.push({
+        sku: item.sku,
+        name: item.name,
+        baseUnit: item.baseUnit,
+        plannedQtyBase,
+        actualQtyBase,
+        variancePct: Number(pct.toFixed(2)),
+        flagged: flag(pct)
+      });
+    }
+
+    res.json({
+      productionRunId: run._id,
+      finishedGood: run.bom.finishedGood.name,
+      batches: run.batches,
+      yield: {
+        plannedOutputPcs,
+        actualOutputPcs: run.goodOutputPcs,
+        variancePct: Number(yieldPct.toFixed(2)),
+        flagged: flag(yieldPct)
+      },
+      materials,
+      packaging
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
