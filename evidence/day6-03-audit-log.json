@@ -1,10 +1,1 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Error</title>
-</head>
-<body>
-<pre>Cannot GET /audit-logs</pre>
-</body>
-</html>
+[{"_id":"6b01bc73de5ead3cbb469d21","entityType":"ProductionRun","entityId":"6b01841c611395739317d1ec","action":"UPDATE","user":{"id":"6b01bad2a70e3a826bdfaf59","username":"admin","role":"ADMIN"},"timestamp":"2026-11-21T15:44:51.717Z","before":{"notes":"","_id":"6b01841c611395739317d1ec","bom":"6b0183671465db312a0475cb","batches":1,"runDate":"2026-11-21T11:44:28.143Z","issues":[{"item":"6b0183671465db312a0475b3","qtyBase":40000},{"item":"6b0183671465db312a0475b7","qtyBase":10500},{"item":"6b0183671465db312a0475bb","qtyBase":1200}],"goodOutputPcs":188,"damagedPcs":6,"cartonsUsed":9,"createdBy":"production@factory.test","createdAt":"2026-11-21T11:44:28.146Z","updatedAt":"2026-11-21T11:44:28.146Z","__v":0},"after":{"notes":"","_id":"6b01841c611395739317d1ec","bom":"6b0183671465db312a0475cb","batches":1,"runDate":"2026-11-21T11:44:28.143Z","issues":[{"item":"6b0183671465db312a0475b3","qtyBase":40000},{"item":"6b0183671465db312a0475b7","qtyBase":10500},{"item":"6b0183671465db312a0475bb","qtyBase":1200}],"goodOutputPcs":188,"damagedPcs":6,"cartonsUsed":9,"createdBy":"production@factory.test","createdAt":"2026-11-21T11:44:28.146Z","updatedAt":"2026-11-21T11:44:28.146Z","__v":0},"__v":0}]

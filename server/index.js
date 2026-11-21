@@ -14,6 +14,8 @@ const Order = require('./models/Order');
 const { Invoice } = require('./models/Invoice');
 const { User } = require('./models/User');
 const { requireAuth, requireRole } = require('./middleware/auth');
+const AuditLog = require('./models/AuditLog');
+const { writeAuditLog } = require('./auditService');
 const { postProductionRun } = require('./productionService');
 const { variancePct, flag } = require('./variance');
 const {
@@ -34,6 +36,12 @@ const { weightedAvgRatePaisa, calculateRunCost } = require('./costing');
 const app = express();
 app.use(express.json());
 
+if (!ProductionRun.schema.path('notes')) {
+  ProductionRun.schema.add({ notes: { type: String, default: '' } });
+}
+if (!Invoice.schema.path('notes')) {
+  Invoice.schema.add({ notes: { type: String, default: '' } });
+}
 if (!Order.schema.path('createdBy')) {
   Order.schema.add({ createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } });
 }
@@ -506,6 +514,75 @@ app.get('/reports/:name', async (req, res) => {
       return res.send(csv);
     }
     res.json({ report: req.params.name, count: rows.length, rows });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+
+// --- Day 6: Audited Edits & AuditLog ---
+
+app.patch('/production-runs/:id', requireAuth, requireRole('ADMIN', 'PRODUCTION'), async (req, res) => {
+  try {
+    const run = await ProductionRun.findById(req.params.id);
+    if (!run) return res.status(404).json({ error: 'ProductionRun not found' });
+
+    const before = run.toObject();
+    const allowed = ['goodOutputPcs', 'damagedPcs', 'cartonsUsed', 'notes'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) run[key] = req.body[key];
+    }
+    await run.save();
+    const after = run.toObject();
+
+    const auditLog = await writeAuditLog({
+      entityType: 'ProductionRun',
+      entityId: run._id,
+      user: req.user,
+      before,
+      after
+    });
+
+    res.json({ run: after, auditLog });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.patch('/invoices/:id', requireAuth, requireRole('ADMIN', 'ACCOUNTANT'), async (req, res) => {
+  try {
+    const invoice = await Invoice.findById(req.params.id);
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const before = invoice.toObject();
+    const allowed = ['notes', 'status'];
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) invoice[key] = req.body[key];
+    }
+    await invoice.save();
+    const after = invoice.toObject();
+
+    const auditLog = await writeAuditLog({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      user: req.user,
+      before,
+      after
+    });
+
+    res.json({ invoice: after, auditLog });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get('/audit-logs', requireAuth, requireRole('ADMIN', 'ACCOUNTANT'), async (req, res) => {
+  try {
+    const filter = {};
+    if (req.query.entityType) filter.entityType = req.query.entityType;
+    if (req.query.entityId) filter.entityId = req.query.entityId;
+    const logs = await AuditLog.find(filter).sort({ timestamp: -1 }).lean();
+    res.json(logs);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
