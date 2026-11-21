@@ -115,4 +115,8 @@ Run: `goodOutputPcs: 188`, `damagedPcs: 6`, `cartonsUsed: 9`; Flour `40000 g`, O
 - **Owner (`OWNER`):** Summary view covering today's orders and value, stock levels, variance alerts, run costing, and outstanding dues.
 
 ### Known Gaps
+- **Commit Message Mismatch on Pushed History:** The pushed commit `feat(day6): add notes field to ProductionRun schema` covers the `ProductionRun` schema change where `fix(day6): restore missing comma in ProductionRun model` was requested. Pushed Git history was left untouched rather than rewritten.
 - Dedicated standalone 375px mobile order-entry route/page beyond the responsive single-page dashboard (`server/public/index.html`) is tracked as a follow-up item.
+
+### Audit Log Verification Sequence (Test Log)
+- During Day 6 verification, sequential `PATCH /production-runs/:id` calls were executed as a test sequence (such as `"Checked audit log"`, `"Audit check 2"`, and `"Strict check"`). Each `AuditLog` record captures the `before` and `after` snapshot for that specific write in the run sequence rather than a single standalone edit.
