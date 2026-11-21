@@ -1,0 +1,1 @@
+{"_id":"6b01841e611395739317d215","orderNo":"ORD-2026-0002","customer":"6b01841c611395739317d1fd","createdBy":"salesman@factory.test","status":"APPROVED","lines":[{"item":"6b0183671465db312a0475c7","qtyBase":120,"ratePaisa":5000,"lineTotalPaisa":600000}],"totalPaisa":600000,"createdAt":"2026-11-21T11:44:30.953Z","updatedAt":"2026-11-21T11:44:32.271Z","__v":0}
