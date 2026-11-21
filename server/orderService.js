@@ -88,13 +88,13 @@ async function invoiceOrder(orderId) {
     if (order.status !== 'APPROVED') throw new Error(`Order must be APPROVED before invoicing (current: ${order.status})`);
 
     const fy = getFinancialYear(new Date());
-    const counterKey = `INV-TN-${fy}`;
+    const counterKey = `INV-${fy}`;
     const counter = await Counter.findByIdAndUpdate(
       counterKey,
       { $inc: { seq: 1 } },
       { new: true, upsert: true, session }
     );
-    const invoiceNo = `TN/${fy}/${String(counter.seq).padStart(4, '0')}`;
+    const invoiceNo = `INV/${fy}/${String(counter.seq).padStart(4, '0')}`;
 
     const gst = calculateGstLines(order.lines, order.customer.state);
 
@@ -173,11 +173,11 @@ async function createCreditNote(invoiceId, reason) {
 
   const fy = invoice.financialYear;
   const counter = await Counter.findByIdAndUpdate(
-    `CN-TN-${fy}`,
+    `CN-${fy}`,
     { $inc: { seq: 1 } },
     { new: true, upsert: true }
   );
-  const creditNoteNo = `CN/TN/${fy}/${String(counter.seq).padStart(4, '0')}`;
+  const creditNoteNo = `CN/${fy}/${String(counter.seq).padStart(4, '0')}`;
 
   return CreditNote.create({
     creditNoteNo,
