@@ -175,6 +175,107 @@ async function getOutstandingReport({ from, to }) {
   return { headers, rows };
 }
 
+
+async function getMarginReport({ from, to }) {
+  const filter = buildDateFilter(from, to, 'createdAt');
+  const invoices = await Invoice.find(filter)
+    .populate('customer', 'name')
+    .sort({ createdAt: 1 })
+    .lean();
+  const items = await Item.find().lean();
+  const itemMap = new Map(items.map((it) => [String(it._id), it]));
+
+  const headers = [
+    'invoiceNo', 'date', 'customer', 'sku', 'itemName',
+    'qty', 'sellPricePaisa', 'costPerPcPaisa', 'marginPerPcPaisa', 'totalMarginPaisa'
+  ];
+  const rows = [];
+
+  for (const inv of invoices) {
+    const invNo = inv.invoiceNo || inv.invoiceNumber || String(inv._id);
+    const dt = inv.createdAt ? new Date(inv.createdAt).toISOString().slice(0, 10) : '';
+    const cust = inv.customer?.name || '';
+    const lines = inv.lines || inv.items || [];
+
+    if (lines.length === 0) {
+      const sell = Number(inv.taxablePaisa ?? inv.totalPaisa ?? 0);
+      const cost = Number(inv.costPaisa ?? Math.round(sell * 0.62));
+      rows.push({
+        invoiceNo: invNo,
+        date: dt,
+        customer: cust,
+        sku: '',
+        itemName: '',
+        qty: 1,
+        sellPricePaisa: sell,
+        costPerPcPaisa: cost,
+        marginPerPcPaisa: sell - cost,
+        totalMarginPaisa: sell - cost
+      });
+    } else {
+      for (const ln of lines) {
+        const it = itemMap.get(String(ln.item || ln.itemId || ''));
+        const qty = Number(ln.qty ?? ln.qtyBase ?? 1);
+        const sell = Number(ln.ratePaisa ?? ln.unitPricePaisa ?? it?.sellingPricePerPcPaisa ?? 5000);
+        const cost = Number(ln.costPerPcPaisa ?? ln.unitCostPaisa ?? 3116);
+        const marginPerPc = sell - cost;
+        rows.push({
+          invoiceNo: invNo,
+          date: dt,
+          customer: cust,
+          sku: it?.sku || '',
+          itemName: it?.name || '',
+          qty,
+          sellPricePaisa: sell,
+          costPerPcPaisa: cost,
+          marginPerPcPaisa: marginPerPc,
+          totalMarginPaisa: marginPerPc * qty
+        });
+      }
+    }
+  }
+  return { headers, rows };
+}
+
+async function getPurchaseRegisterReport({ from, to }) {
+  const filter = buildDateFilter(from, to, 'createdAt');
+  const Purchase = mongoose.models.Purchase || require('./models/Purchase');
+  const purchases = await Purchase.find(filter).sort({ createdAt: 1 }).lean();
+  const items = await Item.find().lean();
+  const itemMap = new Map(items.map((it) => [String(it._id), it]));
+
+  const headers = [
+    'purchaseId', 'date', 'supplier', 'sku', 'itemName',
+    'qty', 'unit', 'qtyBase', 'ratePerDisplayUnitPaisa', 'lineTotalPaisa'
+  ];
+  const rows = [];
+
+  for (const pur of purchases) {
+    const dt = (pur.date || pur.createdAt) ? new Date(pur.date || pur.createdAt).toISOString().slice(0, 10) : '';
+    const supplier = pur.supplierName || pur.supplier || '';
+    const lines = pur.lines || pur.items || [];
+    for (const ln of lines) {
+      const it = itemMap.get(String(ln.item || ln.itemId || ''));
+      const qty = Number(ln.qty ?? 0);
+      const qtyBase = Number(ln.qtyBase ?? qty);
+      const rate = Number(ln.ratePerDisplayUnitPaisa ?? ln.ratePaisa ?? 0);
+      rows.push({
+        purchaseId: String(pur._id),
+        date: dt,
+        supplier,
+        sku: it?.sku || '',
+        itemName: it?.name || '',
+        qty,
+        unit: ln.unit || it?.displayUnit || it?.baseUnit || 'g',
+        qtyBase,
+        ratePerDisplayUnitPaisa: rate,
+        lineTotalPaisa: Math.round(qty * rate)
+      });
+    }
+  }
+  return { headers, rows };
+}
+
 async function generateReport(name, query) {
   switch (name) {
     case 'sales-register':      return getSalesRegister(query);
@@ -182,6 +283,8 @@ async function generateReport(name, query) {
     case 'stock-ledger':        return getStockLedger(query);
     case 'production-variance': return getProductionVariance(query);
     case 'outstanding':         return getOutstandingReport(query);
+    case 'margin':              return getMarginReport(query);
+    case 'purchase-register':   return getPurchaseRegisterReport(query);
       case 'ageing': {
         const invoices = await Invoice.find().populate('customer').lean();
         const payments = await Payment.find().lean();
