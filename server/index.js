@@ -452,7 +452,7 @@ app.post('/customers', async (req, res) => {
 app.get('/customers', async (req, res) => {
   try {
     const customers = await Customer.find().lean();
-    res.json(attachMarginFields(customers));
+    res.json(customers);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
