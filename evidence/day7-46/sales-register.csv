@@ -1,0 +1,3 @@
+﻿invoiceNo,date,customer,placeOfSupply,gstin,taxablePaisa,cgstPaisa,sgstPaisa,igstPaisa,totalPaisa
+INV/2026-27/0001,2026-11-21,Retailer A,Tamil Nadu,33AAAAA0000A1Z5,750000,18750,18750,0,787500
+INV/2026-27/0002,2026-11-21,Distributor B,Karnataka,29BBBBB0000B1Z5,600000,0,0,30000,630000

@@ -212,7 +212,7 @@ async function generateReport(name, query) {
         return { report: 'ageing', count: rows.length, rows };
       }
     default:
-      throw new Error(`Unknown report: ${name}. Valid: sales-register, stock-summary, stock-ledger, production-variance, outstanding, ageing`);
+      throw new Error(`Unknown report: ${name}. Valid: sales-register, stock-summary, stock-ledger, production-variance, outstanding, ageing, margin, purchase-register`);
   }
 }
 
