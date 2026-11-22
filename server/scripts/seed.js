@@ -17,7 +17,7 @@ const ITEMS = [
   { sku: 'RM-SPICE',  name: 'Salt and spice mix', category: 'RAW_MATERIAL',  baseUnit: 'g',   displayUnit: 'kg',      displayFactor: 1000, openingQty: 5000   },
   { sku: 'PKG-POUCH', name: '200 g pouch',        category: 'PACKAGING',     baseUnit: 'pcs', displayUnit: 'pcs',     displayFactor: 1,    openingQty: 500    },
   { sku: 'PKG-CART',  name: 'Carton (20 packs)',  category: 'PACKAGING',     baseUnit: 'pcs', displayUnit: 'pcs',     displayFactor: 1,    openingQty: 30     },
-  { sku: 'FG-MUR200', name: 'Murukku 200 g',      category: 'FINISHED_GOOD', baseUnit: 'pcs', displayUnit: 'packets', displayFactor: 1,    openingQty: 50     }
+  { sku: 'FG-MUR200', name: 'Murukku 200 g',      category: 'FINISHED_GOOD', baseUnit: 'pcs', displayUnit: 'packets', displayFactor: 1,    openingQty: 50, hsnCode: '19059020' }
 ];
 
 async function seed() {
