@@ -21,6 +21,7 @@
     button.ok { background: #16a34a; }
     .btn-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .btn-row button { flex: 1 1 30%; margin-top: 0; font-size: 0.8rem; padding: 8px; }
+    .small-btn { width: auto; padding: 4px 8px; margin: 2px 0; font-size: 0.75rem; }
     .grid-2 { display: grid; grid-template-columns: 1fr; gap: 12px; }
     @media (min-width: 720px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
     .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
@@ -28,25 +29,26 @@
     .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
     .kpi .val { font-size: 1.15rem; font-weight: 700; margin-top: 4px; }
     .kpi .lbl { font-size: 0.75rem; color: #64748b; }
-    .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; margin-left: 6px; background: #dbeafe; color: #1e40af; }
     .status-pill { display: inline-block; padding: 2px 7px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: #e2e8f0; color: #1e293b; }
     .net-banner { padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; margin-bottom: 10px; }
     .net-online { background: #dcfce7; color: #166534; }
     .net-offline { background: #fef3c7; color: #92400e; }
     table { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 8px; }
-    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #e2e8f0; }
+    th, td { text-align: left; padding: 7px 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
     .table-wrap { overflow-x: auto; }
-    pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.76rem; margin-top: 8px; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 10px; border-radius: 6px; overflow-x: auto; font-size: 0.76rem; margin-top: 8px; white-space: pre-wrap; word-break: break-word; }
     .hidden { display: none !important; }
     .topbar { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
     .topbar button { width: auto; margin: 0; padding: 6px 12px; background: #ef4444; font-size: 0.8rem; }
+    .date-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   </style>
 </head>
 <body>
   <div class="container">
     <div id="netBanner" class="net-banner net-online">Network: Online</div>
 
-    <!-- Login Card -->
+    <!-- Login -->
     <div id="loginCard" class="card">
       <h1>Order & Audit ERP</h1>
       <p style="margin:0 0 10px;font-size:0.85rem;color:#475569;">Sign in to load your role workspace.</p>
@@ -65,7 +67,7 @@
       <pre id="loginOut" class="hidden"></pre>
     </div>
 
-    <!-- Authenticated Workspace -->
+    <!-- Workspace -->
     <div id="appArea" class="hidden">
       <div class="card topbar">
         <div>
@@ -75,7 +77,7 @@
         <button onclick="logout()">Logout</button>
       </div>
 
-      <!-- 1. SALESMAN WORKSPACE (Mobile-first, weak-network queue) -->
+      <!-- SALESMAN -->
       <div id="view-SALESMAN" class="role-view hidden">
         <div class="card">
           <h2>New Order (Weak-Network Safe)</h2>
@@ -102,7 +104,7 @@
           <h2>My Orders & Status</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
+              <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th></tr></thead>
               <tbody id="smOrdersBody"></tbody>
             </table>
           </div>
@@ -119,13 +121,13 @@
         </div>
       </div>
 
-      <!-- 2. FACTORY ADMIN WORKSPACE (Desktop: Orders, GST Invoice, Dispatch, Payment) -->
+      <!-- FACTORY ADMIN -->
       <div id="view-ADMIN" class="role-view hidden">
         <div class="card">
-          <h2>Orders — Verify, Invoice, Dispatch</h2>
+          <h2>Orders: Verify, Invoice, Dispatch</h2>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Customer</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+              <thead><tr><th>Order</th><th>Customer</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
               <tbody id="admOrdersBody"></tbody>
             </table>
           </div>
@@ -133,7 +135,7 @@
         </div>
 
         <div class="card">
-          <h2>Invoices — Record Payment</h2>
+          <h2>Record Payment Against Invoice</h2>
           <label>Invoice</label>
           <select id="admInvoiceSelect"></select>
           <div class="grid-2">
@@ -155,13 +157,13 @@
         </div>
       </div>
 
-      <!-- 3. PRODUCTION SUPERVISOR WORKSPACE (Raw Material Receipts, Runs, Wastage, Audited Edit) -->
+      <!-- PRODUCTION -->
       <div id="view-PRODUCTION" class="role-view hidden">
         <div class="grid-2">
           <div class="card">
             <h2>Record Raw Material Receipt</h2>
             <label>Supplier Name</label>
-            <input id="supName" placeholder="e.g. Sri Murugan Mills" />
+            <input id="supName" placeholder="e.g. Kaveri Flour Mills" />
             <label>Material Item</label>
             <select id="purItem"></select>
             <div class="grid-2">
@@ -170,7 +172,7 @@
                 <input id="purQtyBase" type="number" value="10000" min="1" />
               </div>
               <div>
-                <label>Rate / display unit (paise)</label>
+                <label>Rate per display unit (paise)</label>
                 <input id="purRatePaisa" type="number" value="4400" min="0" />
               </div>
             </div>
@@ -180,8 +182,8 @@
 
           <div class="card">
             <h2>Log Daily Production Run</h2>
-            <label>BOM ID</label>
-            <input id="runBomId" placeholder="Paste BOM ObjectId" />
+            <label>BOM ID (from seed output)</label>
+            <input id="runBomId" placeholder="Paste Murukku BOM ObjectId" />
             <div class="grid-2">
               <div>
                 <label>Batches</label>
@@ -190,6 +192,18 @@
               <div>
                 <label>Good Output (pcs)</label>
                 <input id="runGood" type="number" value="188" min="0" />
+              </div>
+              <div>
+                <label>Flour issued (g)</label>
+                <input id="runFlour" type="number" value="40000" min="1" />
+              </div>
+              <div>
+                <label>Oil issued (ml)</label>
+                <input id="runOil" type="number" value="10500" min="1" />
+              </div>
+              <div>
+                <label>Spice mix issued (g)</label>
+                <input id="runSpice" type="number" value="1200" min="1" />
               </div>
               <div>
                 <label>Damaged Pouches</label>
@@ -206,9 +220,9 @@
         </div>
 
         <div class="card">
-          <h2>Edit Production Run (Writes AuditLog)</h2>
+          <h2>Edit Production Run (writes audit log)</h2>
           <label>Production Run</label>
-          <select id="editRunSelect"></select>
+          <select id="editRunSelect" onchange="fillEditRun()"></select>
           <div class="grid-2">
             <div>
               <label>Good Output (pcs)</label>
@@ -221,27 +235,39 @@
           </div>
           <label>Notes</label>
           <input id="editRunNotes" placeholder="Shift / wastage note" />
-          <button class="warn" onclick="patchProductionRun()">Save Edit & Write Audit Log</button>
+          <button class="warn" onclick="patchProductionRun()">Save Edit and Write Audit Log</button>
           <pre id="editRunOut" class="hidden"></pre>
         </div>
       </div>
 
-      <!-- 4. ACCOUNTANT / AUDITOR WORKSPACE (Read-only Reports, CSV Export, Audit Trail) -->
+      <!-- ACCOUNTANT -->
       <div id="view-ACCOUNTANT" class="role-view hidden">
         <div class="card">
-          <h2>Accounting & Audit Reports (Read-Only)</h2>
-          <div class="btn-row">
-            <button onclick="pullReport('sales')">Sales</button>
-            <button onclick="pullReport('gst')">GST</button>
-            <button onclick="pullReport('stock')">Stock</button>
-            <button onclick="pullReport('purchase')">Purchase</button>
-            <button onclick="pullReport('collection')">Collection</button>
-            <button onclick="pullReport('outstanding')">Outstanding</button>
+          <h2>Accounting and Audit Reports (Read-Only)</h2>
+          <div class="date-row">
+            <div>
+              <label>From</label>
+              <input id="accFrom" type="date" value="2026-01-01" />
+            </div>
+            <div>
+              <label>To</label>
+              <input id="accTo" type="date" value="2026-12-31" />
+            </div>
           </div>
-          <div class="btn-row" style="margin-top:10px;">
-            <button class="secondary" onclick="downloadCsv('sales')">CSV: Sales</button>
-            <button class="secondary" onclick="downloadCsv('gst')">CSV: GST</button>
-            <button class="secondary" onclick="downloadCsv('stock')">CSV: Stock</button>
+          <div class="btn-row">
+            <button onclick="pullReport('sales-register')">Sales Register</button>
+            <button onclick="pullReport('gst-summary')">GST Summary</button>
+            <button onclick="pullReport('stock-summary')">Stock Summary</button>
+            <button onclick="pullReport('purchase-register')">Purchase Register</button>
+            <button onclick="pullReport('outstanding')">Outstanding</button>
+            <button onclick="pullReport('ageing')">Ageing</button>
+            <button onclick="pullReport('production-variance')">Production Variance</button>
+            <button onclick="pullReport('margin')">Margin</button>
+          </div>
+          <div class="btn-row">
+            <button class="secondary" onclick="downloadCsv('sales-register')">CSV: Sales</button>
+            <button class="secondary" onclick="downloadCsv('purchase-register')">CSV: Purchase</button>
+            <button class="secondary" onclick="downloadCsv('stock-summary')">CSV: Stock</button>
             <button class="secondary" onclick="downloadCsv('outstanding')">CSV: Outstanding</button>
           </div>
           <pre id="accReportOut" class="hidden"></pre>
@@ -254,7 +280,7 @@
         </div>
       </div>
 
-      <!-- 5. OWNER WORKSPACE (Executive Summary) -->
+      <!-- OWNER -->
       <div id="view-OWNER" class="role-view hidden">
         <div class="card">
           <h2>Owner Daily Summary</h2>
@@ -273,7 +299,7 @@
             <pre id="ownStockOut"></pre>
           </div>
           <div class="card">
-            <h2>Latest Run Cost & Audit</h2>
+            <h2>Latest Run Cost and Audit</h2>
             <pre id="ownCostOut"></pre>
           </div>
         </div>
@@ -284,8 +310,51 @@
   <script>
     let token = '';
     let user = null;
+    let itemsCache = [];
+    let adminInvoices = [];
     const QUEUE_KEY = 'order_audit_offline_queue_v1';
 
+    // ---------- helpers ----------
+    function esc(v) {
+      return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function rupees(paisa) {
+      return '₹' + ((Number(paisa) || 0) / 100).toFixed(2);
+    }
+    function authHeaders(extra = {}) {
+      return token ? { Authorization: 'Bearer ' + token, ...extra } : { ...extra };
+    }
+    function show(id, data) {
+      const el = document.getElementById(id);
+      el.classList.remove('hidden');
+      el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+    // One place for every API call: adds the token, parses JSON, never throws.
+    async function api(path, opts = {}) {
+      const headers = authHeaders(opts.body !== undefined ? { 'Content-Type': 'application/json' } : {});
+      try {
+        const res = await fetch(path, {
+          method: opts.method || 'GET',
+          headers,
+          body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined
+        });
+        const text = await res.text();
+        let body;
+        try { body = JSON.parse(text); } catch { body = text; }
+        return { ok: res.ok, status: res.status, body };
+      } catch (err) {
+        return { ok: false, status: 0, body: { error: 'Network error: ' + err.message } };
+      }
+    }
+    async function loadItems() {
+      const r = await api('/items');
+      itemsCache = Array.isArray(r.body) ? r.body : [];
+    }
+    function itemIdBySku(sku) {
+      return itemsCache.find(i => i.sku === sku)?._id || '';
+    }
+
+    // ---------- offline queue and network ----------
     function getQueue() {
       try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]'); } catch { return []; }
     }
@@ -300,23 +369,17 @@
         b.textContent = 'Network: Online';
         b.className = 'net-banner net-online';
       } else {
-        b.textContent = 'Network: Offline / Weak — Orders will queue locally';
+        b.textContent = 'Network: Offline / Weak. Orders will queue locally';
         b.className = 'net-banner net-offline';
       }
     }
-    window.addEventListener('online', () => { updateNetBanner(); if (token && user?.role === 'SALESMAN') syncQueuedOrders(); });
+    window.addEventListener('online', () => {
+      updateNetBanner();
+      if (token && user?.role === 'SALESMAN') syncQueuedOrders();
+    });
     window.addEventListener('offline', updateNetBanner);
 
-    function show(id, data) {
-      const el = document.getElementById(id);
-      el.classList.remove('hidden');
-      el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-    }
-
-    function authHeaders(extra = {}) {
-      return { Authorization: 'Bearer ' + token, ...extra };
-    }
-
+    // ---------- login and role routing ----------
     function quickLogin(u) {
       document.getElementById('username').value = u;
       document.getElementById('password').value = 'password123';
@@ -326,28 +389,18 @@
     async function login() {
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
-      const res = await fetch('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const data = await res.json();
-      if (!res.ok) return show('loginOut', data);
+      const r = await api('/auth/login', { method: 'POST', body: { username, password } });
+      if (!r.ok) return show('loginOut', r.body);
 
-      token = data.token;
-      user = data.user;
+      token = r.body.token;
+      user = r.body.user;
       document.getElementById('loginCard').classList.add('hidden');
       document.getElementById('appArea').classList.remove('hidden');
       document.getElementById('userName').textContent = user.name;
-      const badge = document.getElementById('userRoleBadge');
-      badge.textContent = user.role;
-      badge.style.background = '#dbeafe';
-      badge.style.color = '#1e40af';
+      document.getElementById('userRoleBadge').textContent = user.role;
 
       document.querySelectorAll('.role-view').forEach(v => v.classList.add('hidden'));
-      const activeViewId = user.role === 'OWNER' && !document.getElementById('view-OWNER') ? 'view-ADMIN' : 'view-' + user.role;
-      const targetView = document.getElementById(activeViewId) || document.getElementById('view-ADMIN');
-      targetView.classList.remove('hidden');
+      document.getElementById('view-' + user.role)?.classList.remove('hidden');
 
       if (user.role === 'SALESMAN') await initSalesman();
       if (user.role === 'ADMIN') await initAdmin();
@@ -363,63 +416,60 @@
       document.getElementById('loginCard').classList.remove('hidden');
     }
 
-    // --- SALESMAN ---
+    // ---------- SALESMAN ----------
     async function initSalesman() {
       setQueue(getQueue());
-      const [custRes, itemRes] = await Promise.all([fetch('/customers'), fetch('/items')]);
-      const customers = await custRes.json();
-      const items = await itemRes.json();
-      document.getElementById('smCustomer').innerHTML = customers.map(c => `<option value="${c._id}">${c.name}</option>`).join('');
-      document.getElementById('smProduct').innerHTML = items.map(i => `<option value="${i._id}">${i.sku} — ${i.name}</option>`).join('');
+      await loadItems();
+      const c = await api('/customers');
+      const customers = Array.isArray(c.body) ? c.body : [];
+      document.getElementById('smCustomer').innerHTML =
+        customers.map(x => `<option value="${esc(x._id)}">${esc(x.name)}</option>`).join('');
+      document.getElementById('smProduct').innerHTML =
+        itemsCache.filter(i => i.category === 'FINISHED_GOOD')
+          .map(i => `<option value="${esc(i._id)}">${esc(i.sku)} — ${esc(i.name)}</option>`).join('');
       await refreshSalesmanOrders();
     }
 
-    async function salesmanSubmitOrder() {
-      const payload = {
+    function buildOrderPayload() {
+      return {
         customer: document.getElementById('smCustomer').value,
         lines: [{
           item: document.getElementById('smProduct').value,
-          qtyPcs: Number(document.getElementById('smQty').value),
-          ratePerPcPaisa: Math.round(Number(document.getElementById('smRateRs').value) * 100)
+          qtyBase: Number(document.getElementById('smQty').value),
+          ratePaisa: Math.round(Number(document.getElementById('smRateRs').value) * 100)
         }]
       };
+    }
+
+    async function salesmanSubmitOrder() {
+      const payload = buildOrderPayload();
+      const qty = payload.lines[0].qtyBase;
+      if (!Number.isInteger(qty) || qty <= 0) {
+        return show('smOut', { error: 'Quantity must be a positive whole number of packets' });
+      }
       if (!navigator.onLine) {
         const q = getQueue();
         q.push(payload);
         setQueue(q);
         return show('smOut', { queuedOffline: true, pendingCount: q.length });
       }
-      try {
-        const res = await fetch('/orders', {
-          method: 'POST',
-          headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify(payload)
-        });
-        const body = await res.json();
-        show('smOut', { status: res.status, body });
-        if (res.ok) await refreshSalesmanOrders();
-      } catch {
+      const r = await api('/orders', { method: 'POST', body: payload });
+      if (r.status === 0) {
         const q = getQueue();
         q.push(payload);
         setQueue(q);
-        show('smOut', { queuedOnNetworkError: true, pendingCount: q.length });
+        return show('smOut', { queuedOnNetworkError: true, pendingCount: q.length });
       }
+      show('smOut', { status: r.status, body: r.body });
+      if (r.ok) await refreshSalesmanOrders();
     }
 
     async function syncQueuedOrders() {
       const q = getQueue();
       const remaining = [];
-      for (const item of q) {
-        try {
-          const res = await fetch('/orders', {
-            method: 'POST',
-            headers: authHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify(item)
-          });
-          if (!res.ok) remaining.push(item);
-        } catch {
-          remaining.push(item);
-        }
+      for (const payload of q) {
+        const r = await api('/orders', { method: 'POST', body: payload });
+        if (!r.ok) remaining.push(payload);
       }
       setQueue(remaining);
       await refreshSalesmanOrders();
@@ -427,204 +477,242 @@
     }
 
     async function refreshSalesmanOrders() {
-      const res = await fetch('/orders', { headers: authHeaders() });
-      const orders = await res.json();
-      if (!Array.isArray(orders)) return;
+      const r = await api('/orders');
+      const orders = Array.isArray(r.body) ? r.body : [];
 
       document.getElementById('smOrdersBody').innerHTML = orders.map(o => `
         <tr>
-          <td>${o.customer?.name || o.customer}</td>
-          <td>₹${((o.totalPaisa || 0) / 100).toFixed(2)}</td>
-          <td><span class="status-pill">${o.status}</span></td>
-        </tr>
-      `).join('');
+          <td>${esc(o.orderNo)}</td>
+          <td>${esc(o.customer?.name || o.customer)}</td>
+          <td>${rupees(o.totalPaisa)}</td>
+          <td><span class="status-pill">${esc(o.status)}</span></td>
+        </tr>`).join('');
 
       const byCust = new Map();
       for (const o of orders) {
-        const cname = o.customer?.name || String(o.customer);
-        const cur = byCust.get(cname) || { name: cname, count: 0, paisa: 0 };
+        const name = o.customer?.name || String(o.customer);
+        const cur = byCust.get(name) || { name, count: 0, paisa: 0 };
         cur.count += 1;
         cur.paisa += o.totalPaisa || 0;
-        byCust.set(cname, cur);
+        byCust.set(name, cur);
       }
       document.getElementById('smCustomerSalesBody').innerHTML = [...byCust.values()].map(c => `
         <tr>
-          <td>${c.name}</td>
+          <td>${esc(c.name)}</td>
           <td>${c.count}</td>
-          <td>₹${(c.paisa / 100).toFixed(2)}</td>
-        </tr>
-      `).join('');
+          <td>${rupees(c.paisa)}</td>
+        </tr>`).join('');
     }
 
-    // --- FACTORY ADMIN ---
+    // ---------- FACTORY ADMIN ----------
     async function initAdmin() {
-      const [ordRes, invRes] = await Promise.all([
-        fetch('/orders', { headers: authHeaders() }),
-        fetch('/invoices', { headers: authHeaders() })
-      ]);
-      const orders = await ordRes.json();
-      const invoices = await invRes.json();
+      await refreshAdmin();
+    }
 
-      document.getElementById('admOrdersBody').innerHTML = (Array.isArray(orders) ? orders : []).map(o => `
+    async function refreshAdmin() {
+      const [o, i] = await Promise.all([api('/orders'), api('/invoices')]);
+      const orders = Array.isArray(o.body) ? o.body : [];
+      adminInvoices = Array.isArray(i.body) ? i.body : [];
+
+      document.getElementById('admOrdersBody').innerHTML = orders.map(ord => `
         <tr>
-          <td>${o.customer?.name || o.customer}</td>
-          <td>₹${((o.totalPaisa || 0) / 100).toFixed(2)}</td>
-          <td><span class="status-pill">${o.status}</span></td>
+          <td>${esc(ord.orderNo)}</td>
+          <td>${esc(ord.customer?.name || ord.customer)}</td>
+          <td>${rupees(ord.totalPaisa)}</td>
+          <td><span class="status-pill">${esc(ord.status)}</span></td>
           <td>
-            <button class="secondary" style="width:auto;padding:4px 8px;margin:2px 0;" onclick="adminOrderAction('${o._id}','approve')">Verify/Approve</button>
-            <button class="secondary" style="width:auto;padding:4px 8px;margin:2px 0;" onclick="adminOrderAction('${o._id}','invoice')">GST Invoice</button>
-            <button class="secondary" style="width:auto;padding:4px 8px;margin:2px 0;" onclick="adminOrderAction('${o._id}','dispatch')">Dispatch</button>
+            <button class="secondary small-btn" onclick="adminOrderAction('${esc(ord._id)}','approve')">Approve</button>
+            <button class="secondary small-btn" onclick="adminOrderAction('${esc(ord._id)}','invoice')">GST Invoice</button>
+            <button class="secondary small-btn" onclick="adminOrderAction('${esc(ord._id)}','dispatch')">Dispatch</button>
           </td>
-        </tr>
-      `).join('');
+        </tr>`).join('');
 
-      document.getElementById('admInvoiceSelect').innerHTML = (Array.isArray(invoices) ? invoices : []).map(inv => `
-        <option value="${inv._id}">${inv.invoiceNumber || inv._id} — ₹${((inv.grandTotalPaisa || inv.totalPaisa || 0) / 100).toFixed(2)}</option>
-      `).join('');
+      document.getElementById('admInvoiceSelect').innerHTML = adminInvoices.map(inv =>
+        `<option value="${esc(inv._id)}">${esc(inv.invoiceNo)} — ${rupees(inv.totalPaisa)}</option>`
+      ).join('');
     }
 
     async function adminOrderAction(orderId, action) {
-      const res = await fetch(`/orders/${orderId}/${action}`, {
-        method: 'POST',
-        headers: authHeaders()
-      });
-      show('admOut', { action, status: res.status, body: await res.json() });
-      await initAdmin();
+      const r = await api(`/orders/${orderId}/${action}`, { method: 'POST' });
+      show('admOut', { action, status: r.status, body: r.body });
+      await refreshAdmin();
     }
 
     async function adminRecordPayment() {
       const invoiceId = document.getElementById('admInvoiceSelect').value;
+      if (!invoiceId) return show('admPayOut', { error: 'Select an invoice first' });
+      const inv = adminInvoices.find(x => x._id === invoiceId);
       const amountPaisa = Math.round(Number(document.getElementById('admPayRs').value) * 100);
       const mode = document.getElementById('admPayMode').value;
-      const res = await fetch('/payments', {
+      const customer = typeof inv.customer === 'object' ? inv.customer._id : inv.customer;
+      const r = await api('/payments', {
         method: 'POST',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ invoice: invoiceId, amountPaisa, mode })
+        body: { customer, invoice: invoiceId, amountPaisa, paymentDate: new Date().toISOString().slice(0, 10), mode }
       });
-      show('admPayOut', { status: res.status, body: await res.json() });
+      show('admPayOut', { status: r.status, body: r.body });
     }
 
-    // --- PRODUCTION SUPERVISOR ---
+    // ---------- PRODUCTION ----------
     async function initProduction() {
-      const [itemRes, runRes] = await Promise.all([
-        fetch('/items'),
-        fetch('/production-runs', { headers: authHeaders() })
-      ]);
-      const items = await itemRes.json();
-      const runs = await runRes.json();
-      document.getElementById('purItem').innerHTML = items.map(i => `<option value="${i._id}">${i.sku} — ${i.name}</option>`).join('');
-      const runList = Array.isArray(runs) ? runs : [];
-      document.getElementById('editRunSelect').innerHTML = runList.map(r => `<option value="${r._id}">${r._id} (good: ${r.goodOutputPcs}, dmg: ${r.damagedPcs})</option>`).join('');
-      if (runList[0]) {
-        document.getElementById('editRunGood').value = runList[0].goodOutputPcs ?? 0;
-        document.getElementById('editRunDamaged').value = runList[0].damagedPcs ?? 0;
-        document.getElementById('editRunNotes').value = runList[0].notes || '';
-      }
+      await loadItems();
+      document.getElementById('purItem').innerHTML = itemsCache
+        .filter(i => i.category !== 'FINISHED_GOOD')
+        .map(i => `<option value="${esc(i._id)}">${esc(i.sku)} — ${esc(i.name)}</option>`).join('');
+      await refreshRuns();
+    }
+
+    async function refreshRuns() {
+      const r = await api('/production-runs');
+      const runs = Array.isArray(r.body) ? r.body : [];
+      document.getElementById('editRunSelect').innerHTML = runs.map(run =>
+        `<option value="${esc(run._id)}">${esc(run._id)} (good: ${run.goodOutputPcs}, damaged: ${run.damagedPcs})</option>`
+      ).join('');
+      fillEditRun();
+    }
+
+    function fillEditRun() {
+      const id = document.getElementById('editRunSelect').value;
+      if (!id) return;
+      api('/production-runs').then(r => {
+        const run = (Array.isArray(r.body) ? r.body : []).find(x => x._id === id);
+        if (!run) return;
+        document.getElementById('editRunGood').value = run.goodOutputPcs ?? 0;
+        document.getElementById('editRunDamaged').value = run.damagedPcs ?? 0;
+        document.getElementById('editRunNotes').value = run.notes || '';
+      });
     }
 
     async function recordPurchase() {
-      const res = await fetch('/purchases', {
+      const r = await api('/purchases', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           supplierName: document.getElementById('supName').value.trim() || 'Supplier',
           lines: [{
             item: document.getElementById('purItem').value,
             qtyBase: Number(document.getElementById('purQtyBase').value),
             ratePerDisplayUnitPaisa: Number(document.getElementById('purRatePaisa').value)
           }]
-        })
+        }
       });
-      show('purOut', { status: res.status, body: await res.json() });
+      show('purOut', { status: r.status, body: r.body });
     }
 
     async function createRun() {
-      const res = await fetch('/production-runs', {
+      const issues = [
+        { item: itemIdBySku('RM-FLOUR'), qtyBase: Number(document.getElementById('runFlour').value) },
+        { item: itemIdBySku('RM-OIL'), qtyBase: Number(document.getElementById('runOil').value) },
+        { item: itemIdBySku('RM-SPICE'), qtyBase: Number(document.getElementById('runSpice').value) }
+      ];
+      if (issues.some(x => !x.item)) {
+        return show('createRunOut', { error: 'Item list not loaded. Log in again.' });
+      }
+      const r = await api('/production-runs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        body: {
           bom: document.getElementById('runBomId').value.trim(),
           batches: Number(document.getElementById('runBatches').value),
+          issues,
           goodOutputPcs: Number(document.getElementById('runGood').value),
           damagedPcs: Number(document.getElementById('runDamaged').value),
           cartonsUsed: Number(document.getElementById('runCartons').value)
-        })
+        }
       });
-      show('createRunOut', { status: res.status, body: await res.json() });
-      await initProduction();
+      show('createRunOut', { status: r.status, body: r.body });
+      if (r.ok) await refreshRuns();
     }
 
     async function patchProductionRun() {
       const id = document.getElementById('editRunSelect').value;
-      const res = await fetch(`/production-runs/${id}`, {
+      if (!id) return show('editRunOut', { error: 'Select a run first' });
+      const r = await api(`/production-runs/${id}`, {
         method: 'PATCH',
-        headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
+        body: {
           goodOutputPcs: Number(document.getElementById('editRunGood').value),
           damagedPcs: Number(document.getElementById('editRunDamaged').value),
           notes: document.getElementById('editRunNotes').value
-        })
+        }
       });
-      show('editRunOut', { status: res.status, body: await res.json() });
+      show('editRunOut', { status: r.status, body: r.body });
     }
 
-    // --- ACCOUNTANT / AUDITOR ---
+    // ---------- ACCOUNTANT / AUDITOR ----------
     async function initAccountant() {
-      await pullReport('sales');
+      await pullReport('sales-register');
+    }
+
+    function reportRange() {
+      const from = document.getElementById('accFrom').value;
+      const to = document.getElementById('accTo').value;
+      return `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
     }
 
     async function pullReport(name) {
-      const res = await fetch(`/reports/${name}`);
-      show('accReportOut', { status: res.status, body: await res.json() });
+      const r = await api(`/reports/${name}?${reportRange()}`);
+      show('accReportOut', { report: name, status: r.status, body: r.body });
     }
 
-    function downloadCsv(name) {
-      window.open(`/reports/${name}?format=csv`, '_blank');
+    // Fetch with the token, then save as a file. window.open cannot send the token.
+    async function downloadCsv(name) {
+      try {
+        const res = await fetch(`/reports/${name}?${reportRange()}&format=csv`, { headers: authHeaders() });
+        if (!res.ok) return show('accReportOut', { report: name, status: res.status, body: await res.text() });
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${name}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        show('accReportOut', { error: 'Network error: ' + err.message });
+      }
     }
 
     async function loadAuditTrail(targetId) {
-      const res = await fetch('/audit-logs', { headers: authHeaders() });
-      show(targetId, { status: res.status, body: await res.json() });
+      const r = await api('/audit-logs');
+      show(targetId, { status: r.status, body: r.body });
     }
 
-    // --- OWNER ---
+    // ---------- OWNER ----------
     async function loadOwnerSummary() {
-      const [ordRes, stockRes, outRes, runRes, audRes] = await Promise.all([
-        fetch('/orders', { headers: authHeaders() }),
-        fetch('/stock'),
-        fetch('/reports/outstanding'),
-        fetch('/production-runs', { headers: authHeaders() }),
-        fetch('/audit-logs', { headers: authHeaders() })
+      const [o, s, out, runs, aud] = await Promise.all([
+        api('/orders'), api('/stock'), api('/reports/outstanding'), api('/production-runs'), api('/audit-logs')
       ]);
-      const orders = await ordRes.json();
-      const stock = await stockRes.json();
-      const out = await outRes.json();
-      const runs = await runRes.json();
-      const audits = await audRes.json();
+      const orders = Array.isArray(o.body) ? o.body : [];
+      const stock = Array.isArray(s.body) ? s.body : [];
+      const outRows = Array.isArray(out.body) ? out.body : (out.body?.rows || []);
+      const runList = Array.isArray(runs.body) ? runs.body : [];
+      const audits = Array.isArray(aud.body) ? aud.body : [];
 
       const todayStr = new Date().toISOString().slice(0, 10);
-      const todays = Array.isArray(orders) ? orders.filter(o => (o.createdAt || '').startsWith(todayStr)) : [];
-      const todayPaisa = todays.reduce((s, o) => s + (o.totalPaisa || 0), 0);
-      const duePaisa = (out.rows || []).reduce((s, r) => s + (r.balancePaisa || r.outstandingPaisa || 0), 0);
+      const todays = orders.filter(x => (x.createdAt || '').startsWith(todayStr));
+      const todayPaisa = todays.reduce((sum, x) => sum + (x.totalPaisa || 0), 0);
+      const duePaisa = outRows.reduce((sum, x) => sum + (x.outstandingPaisa ?? x.balancePaisa ?? 0), 0);
 
       document.getElementById('ownTodayOrders').textContent = todays.length;
-      document.getElementById('ownTodayValue').textContent = '₹' + (todayPaisa / 100).toFixed(2);
-      document.getElementById('ownDues').textContent = '₹' + (duePaisa / 100).toFixed(2);
+      document.getElementById('ownTodayValue').textContent = rupees(todayPaisa);
+      document.getElementById('ownDues').textContent = rupees(duePaisa);
 
       let costInfo = null;
-      if (Array.isArray(runs) && runs[0]) {
-        const cRes = await fetch(`/production-runs/${runs[0]._id}/cost`);
-        costInfo = await cRes.json();
-        const vRes = await fetch(`/production-runs/${runs[0]._id}/variance`);
-        const vInfo = await vRes.json();
-        const alerts = (vInfo.materials || []).filter(m => m.flagged).length + (vInfo.yield?.flagged ? 1 : 0);
-        document.getElementById('ownAlerts').textContent = alerts;
-      } else {
-        document.getElementById('ownAlerts').textContent = '0';
+      let alerts = 0;
+      if (runList[0]) {
+        const id = runList[0]._id;
+        const [c, v] = await Promise.all([api(`/production-runs/${id}/cost`), api(`/production-runs/${id}/variance`)]);
+        costInfo = c.body;
+        const vi = v.body || {};
+        alerts = (vi.materials || []).filter(m => m.flagged).length + (vi.yield?.flagged ? 1 : 0);
       }
+      document.getElementById('ownAlerts').textContent = alerts;
 
-      document.getElementById('ownStockOut').textContent = JSON.stringify(stock, null, 2);
-      document.getElementById('ownCostOut').textContent = JSON.stringify({ latestCost: costInfo, recentAudits: (Array.isArray(audits) ? audits.slice(0, 3) : audits) }, null, 2);
+      document.getElementById('ownStockOut').textContent = JSON.stringify(stock.map(x => ({
+        sku: x.sku, balance: x.balanceDisplay + ' ' + x.displayUnit
+      })), null, 2);
+      document.getElementById('ownCostOut').textContent = JSON.stringify({
+        latestCostPerPacket: costInfo ? costInfo.costPerPacketRupees : null,
+        recentAudits: audits.slice(0, 3)
+      }, null, 2);
     }
 
     updateNetBanner();
