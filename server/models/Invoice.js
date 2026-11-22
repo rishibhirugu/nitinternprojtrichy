@@ -7,6 +7,7 @@ const counterSchema = new mongoose.Schema({
 const Counter = mongoose.model('Counter', counterSchema);
 
 const invoiceLineSchema = new mongoose.Schema({
+  hsnCode: { type: String, default: '' },
   item: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', required: true },
   qtyBase: { type: Number, required: true },
   ratePaisa: { type: Number, required: true },
