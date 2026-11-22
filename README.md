@@ -120,3 +120,18 @@ Run: `goodOutputPcs: 188`, `damagedPcs: 6`, `cartonsUsed: 9`; Flour `40000 g`, O
 
 ### Audit Log Verification Sequence (Test Log)
 - During Day 6 verification, sequential `PATCH /production-runs/:id` calls were executed as a test sequence (such as `"Checked audit log"`, `"Audit check 2"`, and `"Strict check"`). Each `AuditLog` record captures the `before` and `after` snapshot for that specific write in the run sequence rather than a single standalone edit.
+
+## Architecture & Checklist Status (Sections 1–4.6)
+
+### Implemented Flows
+- **Roles & Auth (`SALESMAN`, `ADMIN`, `PRODUCTION`, `ACCOUNTANT`, `OWNER`):** JWT login, role middleware, and owner order visibility.
+- **Sales & Billing:** Order creation, approval, GST invoicing (FY numbering), dispatch, payment recording, and customer-wise / product-wise sales + ageing reports.
+- **Production & Costing:** BOM-based production runs, automatic stock ledger updates, variance flags, and run cost per packet with margin comparison.
+- **Reports & Exports:** Filterable by `?from=` and `?to=` date range, with CSV export and browser/PDF print support.
+
+### Known Gaps & Trade-Offs
+- **Concurrency on Stock Approval:** Concurrent approvals for the same stock balance can race without optimistic locking/transactions on multi-document writes.
+- **PDF & WhatsApp/Email Dispatch:** Invoice PDF generation uses print/HTML view rather than a server-rendered PDF binary; direct WhatsApp/email sending is not integrated.
+- **Hardcoded Variance Thresholds & WIP:** Variance tolerance thresholds are currently hardcoded rather than configurable per item/BOM, and Work-in-Progress (WIP) is not tracked as a separate ledger bucket.
+- **Batches & Expiry / Tally XML:** Batch/lot expiry tracking and Tally XML export are not yet implemented.
+- **Dedicated 375px Mobile Route:** Uses a mobile-responsive single-page dashboard (`server/public/index.html`) with offline queue support rather than a separate native/PWA build.

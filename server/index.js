@@ -637,6 +637,204 @@ app.get('/production-runs', requireAuth, requireRole('OWNER', 'ADMIN', 'PRODUCTI
   }
 });
 
+
+// --- Section 4.1 - 4.6 Enhancements ---
+
+// Price list endpoint (uses item ratePaisa / sellingPricePaisa or query)
+app.get('/price-list', async (req, res) => {
+  try {
+    const items = await Item.find().lean();
+    res.json(items.map(i => ({
+      itemId: i._id,
+      sku: i.sku,
+      name: i.name,
+      category: i.category,
+      hsn: i.hsn || '19059020',
+      ratePerPcPaisa: i.sellingPricePaisa || i.ratePerPcPaisa || 5000
+    })));
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Allow Admin/Owner to edit order lines before approval
+app.patch('/orders/:id/lines', requireAuth, requireRole('OWNER', 'ADMIN'), async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (Array.isArray(req.body.lines)) {
+      order.lines = req.body.lines;
+      order.totalPaisa = order.lines.reduce((sum, l) => sum + (Number(l.qtyPcs || 0) * Number(l.ratePerPcPaisa || 0)), 0);
+    }
+    await order.save();
+    res.json(order);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Helper for date range filter
+function buildDateFilter(query, field = 'createdAt') {
+  const f = {};
+  if (query.from || query.to) {
+    f[field] = {};
+    if (query.from) f[field].$gte = new Date(query.from);
+    if (query.to) {
+      const end = new Date(query.to);
+      end.setHours(23, 59, 59, 999);
+      f[field].$lte = end;
+    }
+  }
+  return f;
+}
+
+// Filterable Sales Register (customer-wise + product-wise)
+app.get('/reports/sales-detail', async (req, res) => {
+  try {
+    const orders = await Order.find(buildDateFilter(req.query))
+      .populate('customer', 'name state gstin')
+      .populate('lines.item', 'sku name hsn')
+      .lean();
+
+    const byCustomer = {};
+    const byProduct = {};
+    for (const o of orders) {
+      const custKey = String(o.customer?._id || o.customer || 'unknown');
+      if (!byCustomer[custKey]) {
+        byCustomer[custKey] = { customer: o.customer?.name || custKey, state: o.customer?.state || '', orders: 0, totalPaisa: 0 };
+      }
+      byCustomer[custKey].orders += 1;
+      byCustomer[custKey].totalPaisa += o.totalPaisa || 0;
+
+      for (const l of (o.lines || [])) {
+        const prodKey = String(l.item?._id || l.item || 'unknown');
+        if (!byProduct[prodKey]) {
+          byProduct[prodKey] = { sku: l.item?.sku || prodKey, name: l.item?.name || '', hsn: l.item?.hsn || '19059020', qtyPcs: 0, amountPaisa: 0 };
+        }
+        byProduct[prodKey].qtyPcs += Number(l.qtyPcs || 0);
+        byProduct[prodKey].amountPaisa += Number(l.qtyPcs || 0) * Number(l.ratePerPcPaisa || 0);
+      }
+    }
+
+    res.json({
+      from: req.query.from || null,
+      to: req.query.to || null,
+      orderCount: orders.length,
+      byCustomer: Object.values(byCustomer),
+      byProduct: Object.values(byProduct)
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// GSTR-1 / GSTR-3B style summary
+app.get('/reports/gst-summary', async (req, res) => {
+  try {
+    const invoices = await Invoice.find(buildDateFilter(req.query)).populate('customer', 'name gstin state').lean();
+    let taxablePaisa = 0, cgstPaisa = 0, sgstPaisa = 0, igstPaisa = 0;
+    const hsnMap = {};
+
+    for (const inv of invoices) {
+      const taxBase = inv.taxablePaisa ?? inv.subtotalPaisa ?? inv.totalPaisa ?? 0;
+      const isIntra = (inv.customer?.state || '').toLowerCase() === 'tamil nadu';
+      const gstRate = inv.gstRate ?? 0.05;
+      const taxAmt = inv.taxPaisa ?? Math.round(taxBase * gstRate);
+      taxablePaisa += taxBase;
+      if (isIntra) {
+        cgstPaisa += Math.round(taxAmt / 2);
+        sgstPaisa += taxAmt - Math.round(taxAmt / 2);
+      } else {
+        igstPaisa += taxAmt;
+      }
+      const hsn = inv.hsn || '19059020';
+      if (!hsnMap[hsn]) hsnMap[hsn] = { hsn, taxablePaisa: 0, taxPaisa: 0 };
+      hsnMap[hsn].taxablePaisa += taxBase;
+      hsnMap[hsn].taxPaisa += taxAmt;
+    }
+
+    res.json({
+      gstr1: { b2bCount: invoices.length, taxablePaisa, igstPaisa, hsnSummary: Object.values(hsnMap) },
+      gstr3b: { outwardTaxablePaisa: taxablePaisa, cgstPaisa, sgstPaisa, igstPaisa, totalTaxPaisa: cgstPaisa + sgstPaisa + igstPaisa }
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Filterable Purchase Register
+app.get('/reports/purchases-detail', async (req, res) => {
+  try {
+    const purchases = await Purchase.find(buildDateFilter(req.query)).populate('lines.item', 'sku name category').lean();
+    res.json({ count: purchases.length, rows: purchases });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Stock Summary by Category (RAW / PACKAGING / FINISHED)
+app.get('/reports/stock-summary', async (req, res) => {
+  try {
+    const stockRes = await StockLedger.aggregate([
+      { $group: { _id: '$item', balanceBase: { $sum: '$deltaBase' } } }
+    ]);
+    const items = await Item.find().lean();
+    const itemMap = new Map(items.map(i => [String(i._id), i]));
+    const summary = { RAW: [], PACKAGING: [], FINISHED: [], OTHER: [] };
+
+    for (const row of stockRes) {
+      const it = itemMap.get(String(row._id)) || {};
+      const cat = (it.category || 'OTHER').toUpperCase();
+      const bucket = summary[cat] ? cat : 'OTHER';
+      summary[bucket].push({
+        itemId: row._id,
+        sku: it.sku || '',
+        name: it.name || '',
+        balanceBase: row.balanceBase
+      });
+    }
+    res.json(summary);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Customer Receivables Ageing (0-30, 31-60, 61-90, 90+ days)
+app.get('/reports/ageing', async (req, res) => {
+  try {
+    const invoices = await Invoice.find().populate('customer', 'name').lean();
+    const payments = await Payment.find().lean();
+    const paidByInv = new Map();
+    for (const p of payments) {
+      const k = String(p.invoice);
+      paidByInv.set(k, (paidByInv.get(k) || 0) + (p.amountPaisa || 0));
+    }
+
+    const now = Date.now();
+    const rows = invoices.map(inv => {
+      const total = inv.grandTotalPaisa ?? inv.totalPaisa ?? 0;
+      const paid = paidByInv.get(String(inv._id)) || 0;
+      const due = Math.max(0, total - paid);
+      const ageDays = Math.floor((now - new Date(inv.createdAt || now).getTime()) / 86400000);
+      let bucket = '0-30';
+      if (ageDays > 90) bucket = '90+';
+      else if (ageDays > 60) bucket = '61-90';
+      else if (ageDays > 30) bucket = '31-60';
+      return {
+        invoiceId: inv._id,
+        customer: inv.customer?.name || String(inv.customer),
+        duePaisa: due,
+        ageDays,
+        bucket
+      };
+    }).filter(r => r.duePaisa > 0);
+
+    res.json({ rows });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 4000;
 connectDB().then(() => {
   app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
