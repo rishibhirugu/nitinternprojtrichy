@@ -1,0 +1,53 @@
+<anonymous_script>:1
+
+
+SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+    at [eval]:1:18
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:446:12
+    at [eval]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:444:60)
+    at evalFunction (node:internal/process/execution:279:30)
+    at evalTypeScript (node:internal/process/execution:291:3)
+    at node:internal/main/eval_string:74:3
+
+Node.js v22.18.0
+RET=6b02d5c7cd97ec2bed29fa8d DIST=6b02d5c7cd97ec2bed29fa8f OIL=6b02d484f2b11f16877b1b66 SPICE=6b02d484f2b11f16877b1b6a MUR=6b02d484f2b11f16877b1b76
+{"supplierName":"Kaveri Flour Mills","purchaseDate":"2026-11-22T11:45:11.496Z","lines":[{"item":"6b02d484f2b11f16877b1b62","qtyBase":60000,"ratePerDisplayUnitPaisa":4500,"lineTotalPaisa":270000}],"totalPaisa":270000,"_id":"6b02d5c7cd97ec2bed29fa91","createdAt":"2026-11-22T11:45:11.499Z","updatedAt":"2026-11-22T11:45:11.499Z","__v":0}
+RUN=6b02d5c7cd97ec2bed29fa9c
+{"productionRunId":"6b02d5c7cd97ec2bed29fa9c","finishedGood":"Murukku 200 g","batches":1,"yield":{"plannedOutputPcs":200,"actualOutputPcs":188,"variancePct":-6,"flagged":true},"materials":[{"sku":"RM-FLOUR","name":"Flour","baseUnit":"g","plannedQtyBase":40000,"actualQtyBase":40000,"variancePct":0,"flagged":false},{"sku":"RM-OIL","name":"Cooking oil","baseUnit":"ml","plannedQtyBase":10000,"actualQtyBase":10500,"variancePct":5,"flagged":true},{"sku":"RM-SPICE","name":"Salt and spice mix","baseUnit":"g","plannedQtyBase":1200,"actualQtyBase":1200,"variancePct":0,"flagged":false}],"packaging":{"pouches":{"sku":"PKG-POUCH","name":"200 g pouch","plannedQtyBase":200,"goodUsed":188,"damagedPcs":6,"totalIssued":194,"damageNote":"6 damaged pouches reported separately from yield loss"},"cartons":{"sku":"PKG-CART","name":"Carton (20 packs)","plannedQtyBase":10,"actualQtyBase":9}}}
+{"productionRunId":"6b02d5c7cd97ec2bed29fa9c","finishedGood":"Murukku 200 g","valuationMethod":"WEIGHTED_AVERAGE","overheadRule":"Labour (120000 paise) + Gas/Power (60000 paise) allocated across good output packets only","goodOutputPcs":188,"materialCostPaisa":405800,"labourPaisa":120000,"gasPowerPaisa":60000,"overheadPaisa":180000,"totalCostPaisa":585800,"costPerPacketPaisa":3116,"costPerPacketRupees":31.16,"breakdown":[{"sku":"RM-FLOUR","name":"Flour","qtyBase":40000,"avgRatePerDisplayUnitPaisa":4312.5,"costPaisa":172500},{"sku":"RM-OIL","name":"Cooking oil","qtyBase":10500,"avgRatePerDisplayUnitPaisa":14000,"costPaisa":147000},{"sku":"RM-SPICE","name":"Salt and spice mix","qtyBase":1200,"avgRatePerDisplayUnitPaisa":15000,"costPaisa":18000},{"sku":"PKG-POUCH","name":"200 g pouch","qtyBase":194,"avgRatePerDisplayUnitPaisa":250,"costPaisa":48500},{"sku":"PKG-CART","name":"Carton (20 packs)","qtyBase":9,"avgRatePerDisplayUnitPaisa":2200,"costPaisa":19800}]}
+FG-MUR200=238 PKG-CART=21 PKG-POUCH=306 RM-FLOUR=120000 RM-OIL=19500 RM-SPICE=3800
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /orders/ERR</pre>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /orders/ERR</pre>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Error</title>
+</head>
+<body>
+<pre>Cannot POST /orders/ERR</pre>
+</body>
+</html>

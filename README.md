@@ -18,22 +18,25 @@ MongoDB (Mongoose), Express, Node.js. Stock is a ledger; balances are sums of mo
 | Owner | owner |
 
 ## Benchmark (Section 5, clean seed)
+
+Run on a fresh `npm run seed`, using the sequence in `evidence/final/`. Every value below comes from a saved response.
+
 | Check | Expected | Result | Match / why different |
 | --- | --- | --- | --- |
-| Flour closing | 120000 g | 120000 g | Match |
-| Oil closing | 19500 ml | 19500 ml | Match |
-| Pouches closing | 306 | 306 | Match |
-| Finished after run | 238 | 238 | Match |
-| Finished after dispatch | 88 | 88 | Match |
+| Flour closing (after run 1) | 120000 g | 120000 g | Match |
+| Oil closing (after run 1) | 19500 ml | 19500 ml | Match |
+| Pouches closing (after run 1) | 306 | 306 | Match |
+| Finished goods after run 1 | 238 | 238 | Match |
+| Finished goods after Retailer A dispatch | 88 | 88 | Match |
 | Yield variance | -6%, flagged | -6%, flagged | Match |
 | Oil variance | +5%, flagged | +5%, flagged | Match |
-| Retailer A invoice | 787500 | 787500 | Match |
-| Retailer A outstanding | 387500 | 387500 | Match |
-| Distributor B shortage | 32, flagged | 32 | Match |
-| Distributor B invoice | 630000, IGST 30000 | 630000, IGST 30000 | Match (second batch) |
-| Cost per packet | stated method | 3116 paise (₹31.16) | Weighted average. Brief's ≈₹31.14 differs by 2 paise from rounding of flour basis; see design note. |
+| Retailer A invoice (INV/2026-27/0001) | 787500 | 787500 (CGST 18750, SGST 18750) | Match |
+| Retailer A outstanding after ₹4,000 | 387500 | 387500 | Match |
+| Distributor B shortage (120 requested) | 32 flagged | 32 (available 88) | Match |
+| Cost per packet | stated method | 3116 paise (₹31.16) | Weighted average. Brief's ≈₹31.14 differs by 2 paise from the flour-basis rounding; see DESIGN.md. |
+| Distributor B invoice (after run 2) | 630000, IGST 30000 | 630000, IGST 30000, HSN 19059020 | Match. Requires a second batch, which is outside Section 5. |
 
-Note: a second production batch was run after the Section 5 scenario to test Distributor B's shortage clearing. It is not part of the benchmark numbers above.
+**Second batch note:** the brief's Section 5 end state covers one batch. To clear Distributor B's shortage, a second batch (200 packets) was run. Stock after both batches is FG-MUR200=288, RM-FLOUR=80000, RM-OIL=9500, RM-SPICE=2600, PKG-POUCH=106, PKG-CART=11. These are the correct results of two batches, not a mismatch with Section 5.
 
 ## Assumptions
 - Costing: weighted average of opening stock (₹42/kg flour) and purchases. Overheads (labour ₹1,200, gas/power ₹600) allocated to good packets only. Damaged pouches absorbed into good packets' cost.
