@@ -14,6 +14,7 @@ const ProductionRun = require('./models/ProductionRun');
 const Customer = require('./models/Customer');
 const Order = require('./models/Order');
 const { Invoice } = require('./models/Invoice');
+const { buildInvoicePdfBuffer } = require('./invoicePdf');
 const { User } = require('./models/User');
 const { requireAuth, requireRole } = require('./middleware/auth');
 const AuditLog = require('./models/AuditLog');
@@ -904,5 +905,104 @@ app.get('/reports/ageing', async (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 connectDB().then(() => {
-  app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+  
+app.get('/invoices/:id/pdf', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid invoice id' });
+    }
+    const invoice = await Invoice.findById(id)
+      .populate('customer', 'name gstin state address')
+      .populate('lines.item', 'sku name hsnCode hsn sellingPricePerPcPaisa')
+      .lean();
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    const pdfBuffer = buildInvoicePdfBuffer(invoice);
+    await recordInvoiceAudit({ req, invoiceId: invoice._id, action: 'PDF_EXPORT', after: { invoiceNo: invoice.invoiceNo || invoice.invoiceNumber, totalPaisa: invoice.totalPaisa } });
+    const safeNo = String(invoice.invoiceNo || invoice.invoiceNumber || id).replace(/[^a-zA-Z0-9_-]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="invoice-${safeNo}.pdf"`);
+    return res.status(200).send(pdfBuffer);
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to generate invoice PDF' });
+  }
+});
+
+
+async function recordInvoiceAudit({ req, invoiceId, action, before = null, after = null, note = '' }) {
+  try {
+    const actor = req.user?.username || req.user?.id || req.user?._id || 'system';
+    if (typeof auditService.recordAudit === 'function') {
+      await auditService.recordAudit({
+        entityType: 'Invoice',
+        entityId: String(invoiceId),
+        action,
+        actor,
+        before,
+        after,
+        note
+      });
+      return;
+    }
+    if (typeof auditService.logAudit === 'function') {
+      await auditService.logAudit({
+        entityType: 'Invoice',
+        entityId: String(invoiceId),
+        action,
+        actor,
+        before,
+        after,
+        note
+      });
+      return;
+    }
+    await AuditLog.create({
+      entityType: 'Invoice',
+      entityId: String(invoiceId),
+      action,
+      actor,
+      before,
+      after,
+      note
+    });
+  } catch (err) {
+    console.error('Invoice audit log error:', err.message);
+  }
+}
+
+app.get('/invoices/:id/audit', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ error: 'Invalid invoice id' });
+    }
+    const invoice = await Invoice.findById(id).select('_id invoiceNo invoiceNumber').lean();
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+    const logs = await AuditLog.find({
+      $or: [
+        { entityId: String(id) },
+        { entityId: new mongoose.Types.ObjectId(id) },
+        { 'after._id': new mongoose.Types.ObjectId(id) },
+        { 'before._id': new mongoose.Types.ObjectId(id) }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      invoiceId: String(invoice._id),
+      invoiceNo: invoice.invoiceNo || invoice.invoiceNumber || String(invoice._id),
+      count: logs.length,
+      logs
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to fetch invoice audit trail' });
+  }
+});
+
+app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 });
