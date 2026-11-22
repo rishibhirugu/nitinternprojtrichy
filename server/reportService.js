@@ -202,7 +202,7 @@ async function generateReport(name, query) {
           else if (ageDays > 30) bucket = '31-60';
           return {
             invoiceId: inv._id,
-            invoiceNumber: inv.invoiceNumber || '',
+            invoiceNumber: inv.invoiceNumber || inv.invoiceNo || inv.code || String(inv._id),
             customer: inv.customer?.name || String(inv.customer || ''),
             duePaisa,
             ageDays,
