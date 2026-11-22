@@ -1,111 +1,41 @@
-# Order-to-Audit — System Design Note
+# Design Note
 
-## 1. Entity-Relationship Diagram
+## Data model (MongoDB, Mongoose)
+- **Item**: SKU, category (raw / packaging / finished), base unit (g, ml, pcs), display unit and factor.
+- **StockLedger**: one row per movement. Fields: item, qtyDelta (integer base units), eventType (OPENING_STOCK, PURCHASE, ISSUE, PRODUCTION_OUTPUT, DISPATCH), source reference. Balance = sum of qtyDelta per item. Balances are never stored.
+- **BOM**: finished item, output pcs per batch, lines (item, qtyBase per batch).
+- **Purchase**: supplier name, date, lines (item, qtyBase, rate per display unit in paise), total in paise.
+- **ProductionRun**: BOM, batches, issues (item, qtyBase), good output, damaged pouches, cartons used, run date.
+- **Customer**: name, state (place of supply), GSTIN.
+- **Order**: order number, customer, created by, lines (item, qtyBase, rate paise), status (SUBMITTED, APPROVED, INVOICED, DISPATCHED).
+- **Invoice**: number (`INV/FY/NNNN`), financial year, customer, place of supply, lines with taxable, CGST, SGST, IGST and total in paise.
+- **Payment**: customer, invoice, amount in paise, date, mode. Outstanding = invoice total minus payments minus credit notes.
+- **CreditNote**: reverses invoice totals. Invoices are never deleted.
+- **AuditLog**: entity type, entity id, user, timestamp, before and after snapshots (production run edits).
 
-```text
-+-------------------+          +------------------------+
-|       Item        |          |          BOM           |
-+-------------------+          +------------------------+
-| _id (PK)          |<----+    | _id (PK)               |
-| sku (unique)      |     +----| finishedGood (FK->Item)|
-| name              |          | outputQtyPcs           |
-| category          |     +----| lines[]:               |
-| baseUnit          |     |    |   item (FK->Item)      |
-| displayUnit       |     |    |   qtyBase              |
-| displayFactor     |     |    +------------------------+
-+-------------------+     |                 ^
-      ^         ^         |                 |
-      |         |         |                 | bom (FK->BOM)
-      |         |         |    +------------------------+
-      |         |         +--->|     ProductionRun      |
-      |         |              +------------------------+
-      |         |              | _id (PK)               |
-      |         |              | batches                |
-      |         |              | runDate                |
-      |         +--------------| issues[]:              |
-      |                        |   item (FK->Item)      |
-      |                        |   qtyBase              |
-      |                        | goodOutputPcs          |
-      |                        | damagedPcs             |
-      |                        | cartonsUsed            |
-      |                        +------------------------+
-      |                                     |
-      | item (FK->Item)                     | sourceId (polymorphic)
-      |                                     v
-+-------------------+          +------------------------+
-|     Purchase      |          |      StockLedger       |
-+-------------------+          +------------------------+
-| _id (PK)          |--------->| _id (PK)               |
-| supplierName      | sourceId | item (FK->Item, idx)   |
-| purchaseDate      |          | qtyDelta (+/- int)     |
-| lines[]:          |          | eventType (enum)       |
-|   item (FK->Item) |          | sourceType             |
-|   qtyBase         |          | sourceId               |
-|   ratePerDispPaisa|          | note                   |
-|   lineTotalPaisa  |          | createdAt              |
-| totalPaisa        |          +------------------------+
-+-------------------+
+## Stock and BOM consumption
+- A production run is one Mongo transaction. It writes ISSUE rows (negative) for each raw and packaging item, a PRODUCTION_OUTPUT row for finished goods, and the run document. If any write fails, the transaction rolls back.
+- Expected consumption = BOM qty × batches. Actual = issues recorded.
+- Dispatch writes a DISPATCH row (negative). A rejected dispatch leaves stock unchanged.
+- Purchases post PURCHASE rows in one transaction with the purchase document.
 
+## Variance
+- Yield variance = (actual good output − expected output) / expected × 100. Oil variance is computed the same way per item.
+- Flagged when absolute variance exceeds 3% (hardcoded constant).
+- Computed on read from stored runs; never stored, so it cannot drift from the ledger.
 
-2. Stock & BOM Consumption Computation
-Append-Only Stock Ledger
-Stock balances are never stored as mutable counters on Item. Every stock movement appends signed integer rows (qtyDelta) to StockLedger:
+## Costing
+- Method: weighted average of opening stock and purchases per item. Flour: ₹42/kg opening and ₹45/kg purchase, giving ₹43.125/kg weighted.
+- Overheads: labour ₹1,200 and gas/power ₹600 per run, allocated across good packets only.
+- Damaged pouches are part of the packaging cost, absorbed into good packets.
+- Cost per packet (run 1) = 585,800 paise / 188 = 3115.96, rounded to 3116 paise (₹31.16). The brief's ≈₹31.14 is not reproduced by the inputs; the difference is rounding of the flour basis.
 
-Inbound (+qtyDelta): OPENING_STOCK, PURCHASE, PRODUCTION_OUTPUT
+## GST
+- Tamil Nadu: CGST 2.5% + SGST 2.5%. Other states: IGST 5%.
+- Computed per line, rounded half-up to the paisa, summed per invoice.
+- Invoice numbers: one series per financial year.
 
-Outbound (-qtyDelta): PRODUCTION_ISSUE, DISPATCH
-
-Corrections (+/-): ADJUSTMENT
-
-Live stock is computed via MongoDB aggregation:
-
-balanceBase(item) = SUM(qtyDelta)
-
-balanceDisplay(item) = balanceBase(item) / displayFactor
-
-Transactional BOM Consumption & Variance
-POST /production-runs executes inside a single MongoDB session/transaction:
-
-Validates the BOM and all issue lines (qtyBase > 0, integer, valid Item) before any write.
-
-Appends PRODUCTION_ISSUE rows for raw materials (-qtyBase), pouches (-(goodOutputPcs + damagedPcs)), and cartons (-cartonsUsed).
-
-Appends a PRODUCTION_OUTPUT row for the finished good (+goodOutputPcs).
-
-Saves ProductionRun using the same _id as sourceId on every ledger row. Any error calls abortTransaction(), guaranteeing zero partial writes.
-
-Planned vs. actual variance is computed on read by pure functions in server/variance.js:
-
-variancePct = ((actual - expected) / expected) * 100
-
-flagged = Math.abs(variancePct) > 3 (default ±3% tolerance)
-
-Expected raw material: bomLine.qtyBase * batches
-
-Expected output: bom.outputQtyPcs * batches
-
-Packaging separation: Damaged pouches (damagedPcs) are logged as PRODUCTION_ISSUE (physical loss, not a count adjustment) and reported separately from finished-good yield loss.
-
-3. Costing & Valuation Method
-Rate-per-kg (Display-Unit) Rule
-Suppliers quote rates per display unit (e.g., INR/kg or INR/L), while stock is tracked in integer base units (g, ml, pcs). To prevent floating-point drift, all money is stored in integer paisa (1 INR = 100 paisa), and each purchase line total is computed as:
-
-lineTotalPaisa = Math.round((qtyBase * ratePerDisplayUnitPaisa) / displayFactor)
-
-Example: 40,000 g flour at ₹50.00/kg (5000 paisa, displayFactor = 1000) → (40000 * 5000) / 1000 = 200,000 paisa (₹2,000.00).
-
-Rounding is applied per line before summing totalPaisa so invoice totals reconcile to the exact paisa.
-
-Carton Rounding Rule
-Each master carton holds a fixed pack count (20 packets for Murukku 200 g):
-
-Full-carton dispatch rule (floor): Math.floor(goodOutputPcs / 20) full cartons are sealed for dispatch; the remainder (goodOutputPcs % 20) stays as loose packets.
-
-Benchmark example: 188 good packets → 9 full cartons (180 packets) + 8 loose packets.
-
-Physical issuance: StockLedger always deducts the actual cartonsUsed reported by the floor (9 in the benchmark) so partial or damaged cartons never create phantom stock discrepancies.
-
-Inventory Valuation Method
-Raw materials & packaging: Valued using Weighted Average Cost (WAC) in paisa per base unit, recalculated on each PURCHASE:newWAC = (existingValuePaisa + purchaseLineTotalPaisa) / (existingQtyBase + purchaseQtyBase)
-
-Finished goods (costPerPacketPaisa): Sum of actual issued raw-material and packaging costs (including damaged pouches, since scrap is a real production cost) divided by goodOutputPcs, rounded to the nearest paisa.
+## Concurrency and known limits
+- Approval checks stock but does not reserve it. Two approvals can pass on the same packets; the second dispatch is the point where a shortage would surface. Not fixed.
+- Credit notes do not restock.
+- HSN code is not saved on the invoice line (see README known gaps).
