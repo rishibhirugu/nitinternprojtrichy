@@ -328,6 +328,20 @@ app.get('/production-runs/:id/variance', async (req, res) => {
 });
 
 // GET /production-runs/:id/cost — weighted-average cost per good packet
+
+function attachMarginFields(payload = {}, sellingPricePerPcPaisa = 5000) {
+  const costPerPc = Number(payload.costPerPcPaisa ?? payload.unitCostPaisa ?? payload.costPerPacketPaisa ?? 0);
+  const sellPrice = Number(payload.sellingPricePerPcPaisa ?? sellingPricePerPcPaisa ?? 5000);
+  const grossMarginPerPcPaisa = sellPrice - costPerPc;
+  const grossMarginPct = sellPrice > 0 ? Number(((grossMarginPerPcPaisa / sellPrice) * 100).toFixed(2)) : 0;
+  return {
+    ...payload,
+    sellingPricePerPcPaisa: sellPrice,
+    grossMarginPerPcPaisa,
+    grossMarginPct
+  };
+}
+
 app.get('/production-runs/:id/cost', async (req, res) => {
   try {
     const run = await ProductionRun.findById(req.params.id)
@@ -412,7 +426,7 @@ app.post('/customers', async (req, res) => {
 app.get('/customers', async (req, res) => {
   try {
     const customers = await Customer.find().lean();
-    res.json(customers);
+    res.json(attachMarginFields(customers));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
