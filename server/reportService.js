@@ -256,8 +256,9 @@ async function getPurchaseRegisterReport({ from, to }) {
     const lines = pur.lines || pur.items || [];
     for (const ln of lines) {
       const it = itemMap.get(String(ln.item || ln.itemId || ''));
-      const qty = Number(ln.qty ?? 0);
-      const qtyBase = Number(ln.qtyBase ?? qty);
+      const qtyBase = Number(ln.qtyBase ?? 0);
+      const factor = Number(it?.displayFactor ?? 1);
+      const qty = qtyBase / factor;
       const rate = Number(ln.ratePerDisplayUnitPaisa ?? ln.ratePaisa ?? 0);
       rows.push({
         purchaseId: String(pur._id),
@@ -269,7 +270,7 @@ async function getPurchaseRegisterReport({ from, to }) {
         unit: ln.unit || it?.displayUnit || it?.baseUnit || 'g',
         qtyBase,
         ratePerDisplayUnitPaisa: rate,
-        lineTotalPaisa: Math.round(qty * rate)
+        lineTotalPaisa: Number(ln.lineTotalPaisa ?? Math.round(qty * rate))
       });
     }
   }
