@@ -7,6 +7,7 @@ const Item = require('./models/Item');
 const StockLedger = require('./models/StockLedger');
 const ProductionRun = require('./models/ProductionRun');
 const { variancePct, flag } = require('./variance');
+const { getRunCostPerPacket } = require('./runCost');
 
 function buildDateFilter(from, to, field = 'createdAt') {
   const range = {};
@@ -177,6 +178,8 @@ async function getOutstandingReport({ from, to }) {
 
 
 async function getMarginReport({ from, to }) {
+  const runCost = await getRunCostPerPacket();
+  const runCostPerPc = Number(runCost?.costPerPacketPaisa ?? 3116);
   const filter = buildDateFilter(from, to, 'createdAt');
   const invoices = await Invoice.find(filter)
     .populate('customer', 'name')
@@ -217,7 +220,7 @@ async function getMarginReport({ from, to }) {
         const it = itemMap.get(String(ln.item || ln.itemId || ''));
         const qty = Number(ln.qty ?? ln.qtyBase ?? 1);
         const sell = Number(ln.ratePaisa ?? ln.unitPricePaisa ?? it?.sellingPricePerPcPaisa ?? 5000);
-        const cost = Number(ln.costPerPcPaisa ?? ln.unitCostPaisa ?? 3116);
+        const cost = Number(ln.costPerPcPaisa ?? ln.unitCostPaisa ?? runCostPerPc);
         const marginPerPc = sell - cost;
         rows.push({
           invoiceNo: invNo,
