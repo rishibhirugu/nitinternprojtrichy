@@ -182,8 +182,37 @@ async function generateReport(name, query) {
     case 'stock-ledger':        return getStockLedger(query);
     case 'production-variance': return getProductionVariance(query);
     case 'outstanding':         return getOutstandingReport(query);
+      case 'ageing': {
+        const invoices = await Invoice.find().populate('customer').lean();
+        const payments = await Payment.find().lean();
+        const paidByInv = new Map();
+        for (const pay of payments) {
+          const k = String(pay.invoice);
+          paidByInv.set(k, (paidByInv.get(k) || 0) + Number(pay.amountPaisa || 0));
+        }
+        const now = Date.now();
+        const rows = invoices.map((inv) => {
+          const total = Number(inv.grandTotalPaisa ?? inv.totalPaisa ?? 0);
+          const paid = paidByInv.get(String(inv._id)) || 0;
+          const duePaisa = Math.max(0, total - paid);
+          const ageDays = Math.max(0, Math.floor((now - new Date(inv.createdAt || now).getTime()) / 86400000));
+          let bucket = '0-30';
+          if (ageDays > 90) bucket = '90+';
+          else if (ageDays > 60) bucket = '61-90';
+          else if (ageDays > 30) bucket = '31-60';
+          return {
+            invoiceId: inv._id,
+            invoiceNumber: inv.invoiceNumber || '',
+            customer: inv.customer?.name || String(inv.customer || ''),
+            duePaisa,
+            ageDays,
+            bucket
+          };
+        });
+        return { report: 'ageing', count: rows.length, rows };
+      }
     default:
-      throw new Error(`Unknown report: ${name}. Valid: sales-register, stock-summary, stock-ledger, production-variance, outstanding`);
+      throw new Error(`Unknown report: ${name}. Valid: sales-register, stock-summary, stock-ledger, production-variance, outstanding, ageing`);
   }
 }
 
