@@ -13,8 +13,19 @@ function roundHalfUpPct(amountPaisa, rateBps) {
   return Math.floor((amountPaisa * rateBps + 5000) / 10000);
 }
 
-function calculateGstLines(lines, placeOfSupply) {
+function resolveHsnCode(line, hsnByItemId = {}) {
+  const itemObjHsn =
+    line.item && typeof line.item === 'object'
+      ? (line.item.hsnCode || line.item.hsn || '')
+      : '';
+  const mapHsn = line.item ? (hsnByItemId[String(line.item)] || '') : '';
+  const raw = line.hsnCode || line.hsn || itemObjHsn || mapHsn || '';
+  return String(raw).trim().toUpperCase();
+}
+
+function calculateGstLines(lines, placeOfSupply, options = {}) {
   const isIntraState = placeOfSupply.trim().toLowerCase() === HOME_STATE.toLowerCase();
+  const hsnByItemId = options.hsnByItemId || {};
 
   let taxableTotal = 0;
   let cgstTotal = 0;
@@ -27,6 +38,7 @@ function calculateGstLines(lines, placeOfSupply) {
     const sgstPaisa = isIntraState ? roundHalfUpPct(taxablePaisa, 250) : 0;
     const igstPaisa = isIntraState ? 0 : roundHalfUpPct(taxablePaisa, 500);
     const lineTotalPaisa = taxablePaisa + cgstPaisa + sgstPaisa + igstPaisa;
+    const hsnCode = resolveHsnCode(line, hsnByItemId);
 
     taxableTotal += taxablePaisa;
     cgstTotal += cgstPaisa;
@@ -35,6 +47,7 @@ function calculateGstLines(lines, placeOfSupply) {
 
     return {
       item: line.item,
+      hsnCode,
       qtyBase: line.qtyBase,
       ratePaisa: line.ratePaisa,
       taxablePaisa,

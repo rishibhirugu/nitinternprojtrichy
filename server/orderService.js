@@ -6,6 +6,8 @@ const { Invoice, Counter } = require('./models/Invoice');
 const CreditNote = require('./models/CreditNote');
 const StockLedger = require('./models/StockLedger');
 const { getFinancialYear, calculateGstLines } = require('./gst');
+const { buildHsnByItemId } = require('./hsnHelper');
+const { allocateFefoBatches } = require('./fefoHelper');
 
 async function getItemBalanceBase(itemId, session = null) {
   const agg = StockLedger.aggregate([
@@ -96,7 +98,8 @@ async function invoiceOrder(orderId) {
     );
     const invoiceNo = `INV/${fy}/${String(counter.seq).padStart(4, '0')}`;
 
-    const gst = calculateGstLines(order.lines, order.customer.state);
+    const hsnByItemId = await buildHsnByItemId(order.lines, Item);
+    const gst = calculateGstLines(order.lines, order.customer.state, { hsnByItemId });
 
     const [invoice] = await Invoice.create([{
       invoiceNo,
@@ -132,26 +135,35 @@ async function dispatchOrder(orderId) {
   try {
     const order = await Order.findById(orderId).session(session);
     if (!order) throw new Error(`Order not found: ${orderId}`);
-    if (order.status !== 'INVOICED') throw new Error(`Order must be INVOICED before dispatch (current: ${order.status})`);
-
-    // Validate stock before writing anything
-    for (const line of order.lines) {
-      const balance = await getItemBalanceBase(line.item, session);
-      if (balance - line.qtyBase < 0) {
-        throw new Error(`Dispatch would make stock negative (available: ${balance}, requested: ${line.qtyBase})`);
-      }
+    if (order.status !== 'INVOICED') {
+      throw new Error(`Order must be INVOICED before dispatch (current: ${order.status})`);
     }
 
-    // Write DISPATCH ledger rows (negative qtyDelta)
+    // Plan & validate all FEFO allocations before writing any ledger rows
+    const plannedDispatches = [];
     for (const line of order.lines) {
-      await StockLedger.create([{
-        item: line.item,
-        qtyDelta: -line.qtyBase,
-        eventType: 'DISPATCH',
-        sourceType: 'Order',
-        sourceId: order._id,
-        note: `Order dispatch: ${order.orderNo}`
-      }], { session });
+      const allocations = await allocateFefoBatches({
+        itemId: line.item,
+        requiredQtyBase: line.qtyBase,
+        session
+      });
+      plannedDispatches.push({ line, allocations });
+    }
+
+    // Write DISPATCH ledger rows per allocated batch inside session
+    for (const { line, allocations } of plannedDispatches) {
+      for (const slice of allocations) {
+        await StockLedger.create([{
+          item: line.item,
+          qtyDelta: -slice.qtyBase,
+          batchNo: slice.batchNo,
+          expiryDate: slice.expiryDate,
+          eventType: 'DISPATCH',
+          sourceType: 'Order',
+          sourceId: order._id,
+          note: `Order dispatch: ${order.orderNo}${slice.batchNo ? ` [Batch ${slice.batchNo}]` : ''}`
+        }], { session });
+      }
     }
 
     order.status = 'DISPATCHED';

@@ -8,6 +8,25 @@ const jwt = require('jsonwebtoken');
 const connectDB = require('./db');
 const Item = require('./models/Item');
 const StockLedger = require('./models/StockLedger');
+
+function extractLedgerBatchExpiry(src = {}) {
+  const rawBatch = src.batchNo ?? src.batch ?? null;
+  const batchNo =
+    rawBatch !== null && rawBatch !== undefined && String(rawBatch).trim() !== ""
+      ? String(rawBatch).trim().toUpperCase()
+      : null;
+  const rawExpiry = src.expiryDate ?? src.expiry ?? null;
+  let expiryDate = null;
+  if (rawExpiry !== null && rawExpiry !== undefined && String(rawExpiry).trim() !== "") {
+    const d = new Date(rawExpiry);
+    if (Number.isNaN(d.getTime())) {
+      throw new Error(`Invalid expiryDate: ${rawExpiry}`);
+    }
+    expiryDate = d;
+  }
+  return { batchNo, expiryDate };
+}
+
 const BOM = require('./models/BOM');
 const Purchase = require('./models/Purchase');
 const ProductionRun = require('./models/ProductionRun');
@@ -212,6 +231,12 @@ app.post('/purchases', async (req, res) => {
         sourceType: 'Purchase',
         sourceId: purchaseId,
         note: `Purchase from ${supplierName}`
+      ,
+        batchNo: extractLedgerBatchExpiry(req.body).batchNo,
+        expiryDate: extractLedgerBatchExpiry(req.body).expiryDate
+      
+      
+      
       }], { session });
     }
 

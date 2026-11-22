@@ -2,6 +2,25 @@ const mongoose = require('mongoose');
 const BOM = require('./models/BOM');
 const Item = require('./models/Item');
 const StockLedger = require('./models/StockLedger');
+
+function extractBatchAndExpiry(src = {}) {
+  const rawBatch = src.batchNo ?? src.batch ?? null;
+  const batchNo =
+    rawBatch !== null && rawBatch !== undefined && String(rawBatch).trim() !== ""
+      ? String(rawBatch).trim().toUpperCase()
+      : null;
+  const rawExpiry = src.expiryDate ?? src.expiry ?? null;
+  let expiryDate = null;
+  if (rawExpiry !== null && rawExpiry !== undefined && String(rawExpiry).trim() !== "") {
+    const d = new Date(rawExpiry);
+    if (Number.isNaN(d.getTime())) {
+      throw new Error(`Invalid expiryDate: ${rawExpiry}`);
+    }
+    expiryDate = d;
+  }
+  return { batchNo, expiryDate };
+}
+
 const ProductionRun = require('./models/ProductionRun');
 
 async function postProductionRun(input) {
