@@ -44,7 +44,7 @@ Note: a second production batch was run after the Section 5 scenario to test Dis
 
 ## Known gaps
 - Margin uses the run 1 cost as a constant; not yet computed per run.
-- HSN code is computed per line but not saved on the invoice record.
+- HSN code (19059020, set on the Murukku item in the seed) is stored on each invoice line. Assumption: the brief gives no HSN, so this value is chosen by us.
 - Kg input is converted in code but the purchase route doesn't use it yet.
 - Approval does not reserve stock: two approvals can oversell the same packets.
 - Credit note reverses money but does not restock.
