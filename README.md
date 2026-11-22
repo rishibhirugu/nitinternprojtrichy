@@ -1,137 +1,64 @@
-# Order-to-Audit System — Small Food Manufacturer
+# Order-to-Audit System (Murukku factory prototype)
 
-Working prototype built for the NIT Tiruchirappalli (Centre for Digital Infrastructure) Winter Internship task. Links field sales, GST billing, BOM-based production, ledger-driven inventory, costing, and monthly auditor reports.
+## Run
+1. `docker compose up -d` (MongoDB replica set)
+2. `cd server && npm install && npm run seed && npm run dev` (API on port 4000)
+3. `cd server && npm test`
 
-## 1. Tech Stack & Why
-- **Database:** MongoDB 7 (single-node replica set in Docker) + Mongoose
-- **Backend:** Node.js, Express, `pdfkit` (GST invoices), Jest (unit/math tests)
-- **Frontend:** React + Vite (mobile-first plain CSS)
+## Stack
+MongoDB (Mongoose), Express, Node.js. Stock is a ledger; balances are sums of movements. Money is integer paise, quantities are integer base units (g, ml, pcs). Chosen because the team already knows JavaScript and Mongo transactions give atomic production runs.
 
-**Why this stack:**
-MongoDB 7 with a replica set supports multi-document ACID transactions, ensuring that inventory movements, stock updates, and related records are saved consistently without partial failures. Node.js and Express provide a lightweight backend using JavaScript, while React and Vite enable a fast, responsive, mobile-friendly interface that makes it easy for factory staff and field salesmen to manage operations.
+## Test logins (password: password123)
+| Role | Username |
+| --- | --- |
+| Salesman | salesman1, salesman2 |
+| Admin | admin |
+| Production | production |
+| Accountant | accountant |
+| Owner | owner |
 
-## 2. Quick Start (Local Setup)
-```bash
-# 1. Start MongoDB 7 replica set
-docker compose up -d
+## Benchmark (Section 5, clean seed)
+| Check | Expected | Result | Match / why different |
+| --- | --- | --- | --- |
+| Flour closing | 120000 g | 120000 g | Match |
+| Oil closing | 19500 ml | 19500 ml | Match |
+| Pouches closing | 306 | 306 | Match |
+| Finished after run | 238 | 238 | Match |
+| Finished after dispatch | 88 | 88 | Match |
+| Yield variance | -6%, flagged | -6%, flagged | Match |
+| Oil variance | +5%, flagged | +5%, flagged | Match |
+| Retailer A invoice | 787500 | 787500 | Match |
+| Retailer A outstanding | 387500 | 387500 | Match |
+| Distributor B shortage | 32, flagged | 32 | Match |
+| Distributor B invoice | 630000, IGST 30000 | 630000, IGST 30000 | Match (second batch) |
+| Cost per packet | stated method | 3116 paise (₹31.16) | Weighted average. Brief's ≈₹31.14 differs by 2 paise from rounding of flour basis; see design note. |
 
-# 2. Install & seed backend (loads Section 5 Murukku 200 g master data)
-cd server
-npm install
-npm run seed
-npm run dev
+Note: a second production batch was run after the Section 5 scenario to test Distributor B's shortage clearing. It is not part of the benchmark numbers above.
 
-# 3. Run unit tests (variance & GST math)
-npm test
+## Assumptions
+- Costing: weighted average of opening stock (₹42/kg flour) and purchases. Overheads (labour ₹1,200, gas/power ₹600) allocated to good packets only. Damaged pouches absorbed into good packets' cost.
+- Invoice series: one per financial year, `INV/2026-27/000N`. Place of supply decides CGST+SGST (Tamil Nadu) or IGST (other states).
+- GST at 5% (2.5% + 2.5%, or 5% IGST). Rounding per line, half-up to the paisa.
+- Carton usage recorded as actual (9 for run 1).
+- Approval checks stock but does not reserve it.
 
-# 4. Start frontend (from Day 5 onward)
-cd ../client
-npm install
-npm run dev
-```
-
-> **Benchmark sequence:** After `npm run seed`, post the Day 3 production run (bringing `FG-MUR200` from `50` to `238`) before running the Day 4 Retailer A / Distributor B order workflow.
-
-## 3. Feature Checklist (Working)
-
-### Must
-- [x] Master `Item` catalog with integer base units (`g`, `ml`, `pcs`) and display conversion factors (`kg`, `L`, `packets`).
-- [x] Append-only `StockLedger` with live balance aggregation (`GET /stock`).
-- [x] Recipe / `BOM` storage and populated retrieval (`GET /boms/:id`).
-- [x] Transactional `POST /purchases` with integer paisa costing and full rollback on invalid lines.
-- [x] Transactional `POST /production-runs` posting raw material issues, packaging issues (including damaged pouches), and finished-good output atomically.
-- [x] Pure variance calculation (`server/variance.js`) and `GET /production-runs/:id/variance` flagging deviations exceeding ±3%.
-- [x] Customer & Order workflow (`POST /customers`, `POST /orders`, `POST /orders/:id/approve`) with zero stock movement until dispatch and shortage detection on approval.
-- [x] GST invoicing (`POST /orders/:id/invoice`) with per-financial-year sequential numbering (`TN/2026-27/0001`), intra-state CGST 2.5% + SGST 2.5% (Tamil Nadu), inter-state IGST 5% (Karnataka), and half-up integer paisa rounding.
-- [x] Transactional dispatch (`POST /orders/:id/dispatch`) deducting finished goods via negative `DISPATCH` ledger entries with negative-stock protection.
-- [x] Credit notes (`POST /invoices/:id/credit-note`) reversing invoice financial totals without deleting the original invoice.
-- [x] Jest unit tests (`variance.test.js` and `gst.test.js`) passing.
-
-### Should
-- [x] Separate reporting of damaged packaging (`damagedPcs`) from finished-good yield loss.
-- [x] Input validation before any ledger write (rejects non-integers, negative quantities, and invalid ObjectIds).
-
-### Stretch
-- [ ] Authentication & role-based access (`createdBy` currently uses placeholder strings).
-- [ ] Payments, outstanding tracking, full cost-per-packet (with labour & overhead), and monthly auditor reports.
-- [ ] GST invoice PDF export (`pdfkit`) and mobile-first React + Vite frontend.
-
-## 4. Assumptions
-- **Integer-only storage:** All quantities are stored in smallest base units (`g`, `ml`, `pcs`) and all currency values in integer **paisa** (`1 INR = 100 paisa`) to avoid floating-point drift.
-- **Damaged packaging is an issue, not an adjustment:** Damaged pouches physically leave stock during production; recording them as `PRODUCTION_ISSUE` keeps the cause traceable rather than masking them as count errors.
-- **Derived variance:** Variance percentages are computed on read from immutable `BOM` and `ProductionRun` records so tolerance thresholds can change without migrating historical data.
-- **No stock reservation on orders:** Creating or approving an order does not move stock; stock is deducted strictly at `DISPATCH`.
-
-## 5. Known Gaps
-- Credit notes reverse invoice financial totals only; stock reversal on returned goods is not yet implemented.
-- No negative-stock guard on raw material production issues yet (dispatch is guarded).
-- No login/RBAC yet (`createdBy` defaults to `production@factory.test` / `salesman@factory.test`).
-- Payments, labour/overhead costing, GST invoice PDF export, and frontend UI are pending.
-
-## 6. Benchmark Table (Days 3–4 Verified)
-
-### Day 3 — Production Run (1 batch Murukku 200 g)
-Run: `goodOutputPcs: 188`, `damagedPcs: 6`, `cartonsUsed: 9`; Flour `40000 g`, Oil `10500 ml`, Spice `1200 g`.
-
-| Metric / Item | Expected | Actual | Status |
-| :--- | :--- | :--- | :--- |
-| **Flour (`RM-FLOUR`)** | `120000 g` (or `60000 g` without extra purchase) | Verified | **Match** |
-| **Cooking oil (`RM-OIL`)** | `19500 ml` (`19.5 L`) | `19500 ml` | **Match** |
-| **Salt & spice mix (`RM-SPICE`)** | `3800 g` (`3.8 kg`) | `3800 g` | **Match** |
-| **200 g pouch (`PKG-POUCH`)** | `306 pcs` | `306 pcs` | **Match** |
-| **Carton 20-pack (`PKG-CART`)** | `21 pcs` | `21 pcs` | **Match** |
-| **Murukku 200 g (`FG-MUR200`)** | `238 pcs` | `238 pcs` | **Match** |
-| **Yield Variance** | `-6%` (`flagged: true`) | `-6%` (`flagged: true`) | **Match** |
-| **Oil Variance** | `+5%` (`flagged: true`) | `+5%` (`flagged: true`) | **Match** |
-
-### Day 4 — Orders, GST Invoice, Dispatch & Credit Note
-
-| Check | Expected | Actual | Status |
-| :--- | :--- | :--- | :--- |
-| **Retailer A order (150 pcs) + approve** | `/stock` Murukku stays `238` | `238` (`APPROVED`) | **Match** |
-| **Retailer A invoice (`TN/2026-27/0001`)** | Taxable `750000`, CGST `18750`, SGST `18750`, Total `787500` paise | `750000` / `18750` / `18750` / `787500` | **Match** |
-| **Retailer A dispatch** | `/stock` Murukku drops to `88` | `88` (`DISPATCHED`) | **Match** |
-| **Credit Note (`CN/TN/2026-27/0001`)** | Reverses invoice totals (`-787500` paise) | `-787500` paise | **Match** |
-| **Distributor B order (120 pcs) approve** | Shortage `32` flagged | `{"shortage":32}` | **Match** |
-| **Distributor B invoice (Karnataka IGST)** | Taxable `600000`, IGST `30000`, Total `630000` paise | Verified in Jest + API | **Match** | 
-## Day 5 Design Notes: Costing & Live Data State
-
-- **Valuation Method (Weighted Average):** Material rates are computed as the weighted average across `OPENING_STOCK` and all `Purchase` lines (`RM-FLOUR`: `(100 kg × ₹42 + 60 kg × ₹45) / 160 kg = ₹43.125/kg`).
-- **Overhead Allocation:** Labour (`120000` paise / ₹1,200) and gas/power (`60000` paise / ₹600) are allocated strictly across the `188` good output packets (`180000 / 188 ≈ 957` paise/packet).
-- **Damaged Pouches Rule (Wastage Absorption):** All `194` issued pouches (`188` good + `6` damaged) at ₹2.50 (`48500` paise) are included in run material cost. Damaged pouches (wastage) are explicitly absorbed into the unit cost of the `188` good packets, giving `585800 / 188 = 3116` paise (`₹31.16`/packet).
-- **Flour Purchase Note:** The 60 kg @ ₹45/kg flour purchase (`Kaveri Flour Mills`) used to verify the ₹43.125/kg weighted average was posted as a test write on the live database *after* the Day 4 reseed, rather than as part of the initial Section 5 seed script.
-- **Why ₹31.16 vs. Brief's ≈₹31.14 (+2 paise/packet):** Using exact integer-paise arithmetic with full precision on the weighted-average flour rate (`₹43.125/kg` × 40 kg = `172500` paise), Oil (`147000`), Spice (`18000`), all `194` pouches (`48500`, absorbing the 6 damaged pouches), `9` cartons (`19800`), plus `180000` paise overhead yields `585800 / 188 = 3115.96` paise → **`3116` paise (`₹31.16`)**. The 2-paisa difference from the brief's `≈₹31.14` estimate reflects exact unrounded weighted-average material inputs and full wastage absorption rather than an approximate estimate.
-
-## Day 6 Known Gaps
-
-- **Mobile Order Screen (375px):** This repository currently implements the Node/Express/Mongoose backend API only. A responsive 375px mobile order-entry UI screen has not been built yet and is tracked as a known gap.
-
-## Day 6 Role-Specific Web Views (375px Responsive)
-
-- **Salesman (`SALESMAN`):** Mobile-first order creation with offline/weak-network queue (`localStorage` + sync), order list with status, and customer-wise sales summary.
-- **Factory Admin (`ADMIN`):** Order verification/approval, GST invoicing, dispatch recording, and payment recording against invoices.
-- **Production Supervisor (`PRODUCTION`):** Raw-material receipt logging, production run creation, and audited production run edits (`PATCH /production-runs/:id`) writing `before` and `after` snapshots to `AuditLog`.
-- **Accountant / Auditor (`ACCOUNTANT`):** Read-only access to `sales`, `gst`, `stock`, `purchase`, `collection`, and `outstanding` reports (JSON + CSV export) and `AuditLog` entries.
-- **Owner (`OWNER`):** Summary view covering today's orders and value, stock levels, variance alerts, run costing, and outstanding dues.
-
-### Known Gaps
-- **Commit Message Mismatch on Pushed History:** The pushed commit `feat(day6): add notes field to ProductionRun schema` covers the `ProductionRun` schema change where `fix(day6): restore missing comma in ProductionRun model` was requested. Pushed Git history was left untouched rather than rewritten.
-- Dedicated standalone 375px mobile order-entry route/page beyond the responsive single-page dashboard (`server/public/index.html`) is tracked as a follow-up item.
-
-### Audit Log Verification Sequence (Test Log)
-- During Day 6 verification, sequential `PATCH /production-runs/:id` calls were executed as a test sequence (such as `"Checked audit log"`, `"Audit check 2"`, and `"Strict check"`). Each `AuditLog` record captures the `before` and `after` snapshot for that specific write in the run sequence rather than a single standalone edit.
-
-## Architecture & Checklist Status (Sections 1–4.6)
-
-### Implemented Flows
-- **Roles & Auth (`SALESMAN`, `ADMIN`, `PRODUCTION`, `ACCOUNTANT`, `OWNER`):** JWT login, role middleware, and owner order visibility.
-- **Sales & Billing:** Order creation, approval, GST invoicing (FY numbering), dispatch, payment recording, and customer-wise / product-wise sales + ageing reports.
-- **Production & Costing:** BOM-based production runs, automatic stock ledger updates, variance flags, and run cost per packet with margin comparison.
-- **Reports & Exports:** Filterable by `?from=` and `?to=` date range, with CSV export and browser/PDF print support.
-
-### Known Gaps & Trade-Offs
-- **Concurrency on Stock Approval:** Concurrent approvals for the same stock balance can race without optimistic locking/transactions on multi-document writes.
-- **PDF & WhatsApp/Email Dispatch:** Invoice PDF generation uses print/HTML view rather than a server-rendered PDF binary; direct WhatsApp/email sending is not integrated.
-- **Hardcoded Variance Thresholds & WIP:** Variance tolerance thresholds are currently hardcoded rather than configurable per item/BOM, and Work-in-Progress (WIP) is not tracked as a separate ledger bucket.
-- **Batches & Expiry / Tally XML:** Batch/lot expiry tracking and Tally XML export are not yet implemented.
-- **Dedicated 375px Mobile Route:** Uses a mobile-responsive single-page dashboard (`server/public/index.html`) with offline queue support rather than a separate native/PWA build.
+## Known gaps
+- Margin uses the run 1 cost as a constant; not yet computed per run.
+- HSN code is computed per line but not saved on the invoice record.
+- Kg input is converted in code but the purchase route doesn't use it yet.
+- Approval does not reserve stock: two approvals can oversell the same packets.
+- Credit note reverses money but does not restock.
+- Invoice PDF is generated but its content is not verified against the checklist.
+- Offline order queue is not tested (not claimed as working).
+- Salesman status list and customer-wise sales not verified.
+- Admin edit/reject and dispatch-without-invoice rejection not tested.
+- Invoice edits not in the audit log (production run edits are).
+- GSTR-1 / GSTR-3B summary data exists; column-to-table mapping not documented.
+- Ageing buckets are correct for today's invoices only.
+- Product-wise sales column not in the sales register.
+- PDF export of reports not built (CSV only).
+- Batch numbers and expiry dates not built in the UI; FEFO helper exists but untested end to end.
+- Owner dashboard and production screen checks not done.
+- Tolerance for variance is hardcoded at 3%.
+- Commit history: a Day 6 commit message doesn't match its change.
+- Demo video and design note: see repo.
