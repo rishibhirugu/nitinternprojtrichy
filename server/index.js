@@ -1,6 +1,7 @@
 require('dotenv').config();
 const path = require('path');
 const express = require('express');
+const { convertToBaseQty } = require('./unitConverter');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -149,6 +150,21 @@ app.get('/purchases', async (req, res) => {
 });
 
 // POST /purchases — transactional purchase + PURCHASE stock ledger entries
+
+function normalizePurchaseLines(lines = []) {
+  return lines.map((line) => {
+    const qtyBase =
+      line.qty !== undefined && line.unit !== undefined
+        ? convertToBaseQty(line.qty, line.unit)
+        : Number(line.qtyBase ?? line.qty ?? 0);
+    return {
+      ...line,
+      unit: line.unit || 'g',
+      qtyBase
+    };
+  });
+}
+
 app.post('/purchases', async (req, res) => {
   const { supplierName, purchaseDate, lines } = req.body;
   if (!supplierName || !Array.isArray(lines) || lines.length === 0) {
