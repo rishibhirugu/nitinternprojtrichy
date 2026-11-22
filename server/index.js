@@ -731,23 +731,27 @@ app.get('/reports/sales-detail', async (req, res) => {
 // GSTR-1 / GSTR-3B style summary
 app.get('/reports/gst-summary', async (req, res) => {
   try {
-    const invoices = await Invoice.find(buildDateFilter(req.query)).populate('customer', 'name gstin state').lean();
+    const invoices = await Invoice.find(buildDateFilter(req.query)).populate('customer').lean();
     let taxablePaisa = 0, cgstPaisa = 0, sgstPaisa = 0, igstPaisa = 0;
     const hsnMap = {};
 
     for (const inv of invoices) {
-      const taxBase = inv.taxablePaisa ?? inv.subtotalPaisa ?? inv.totalPaisa ?? 0;
-      const isIntra = (inv.customer?.state || '').toLowerCase() === 'tamil nadu';
-      const gstRate = inv.gstRate ?? 0.05;
-      const taxAmt = inv.taxPaisa ?? Math.round(taxBase * gstRate);
+      const taxBase = Number(inv.taxablePaisa ?? inv.subtotalPaisa ?? inv.totalPaisa ?? inv.grandTotalPaisa ?? 0);
+      const gstRate = Number(inv.gstRate ?? 0.05);
+      const taxAmt = Number(inv.taxPaisa ?? inv.gstPaisa ?? Math.round(taxBase * gstRate));
+      const state = String(inv.customer?.state || inv.placeOfSupply || '').toLowerCase();
+      const isIntra = state === 'tamil nadu' || state === 'tn';
+
       taxablePaisa += taxBase;
       if (isIntra) {
-        cgstPaisa += Math.round(taxAmt / 2);
-        sgstPaisa += taxAmt - Math.round(taxAmt / 2);
+        const half = Math.round(taxAmt / 2);
+        cgstPaisa += half;
+        sgstPaisa += taxAmt - half;
       } else {
         igstPaisa += taxAmt;
       }
-      const hsn = inv.hsn || '19059020';
+
+      const hsn = String(inv.hsn || inv.hsnCode || '19059020');
       if (!hsnMap[hsn]) hsnMap[hsn] = { hsn, taxablePaisa: 0, taxPaisa: 0 };
       hsnMap[hsn].taxablePaisa += taxBase;
       hsnMap[hsn].taxPaisa += taxAmt;
